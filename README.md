@@ -11,9 +11,21 @@
 [docs-badge]: https://img.shields.io/docsrs/robotxt?logo=Docs.rs&style=for-the-badge
 [docs-url]: http://docs.rs/robotxt
 
+> **Warning** : The library is in active development. Expect breaking changes.
+  
 The implementation of the robots.txt protocol (or URL exclusion protocol) in
 Rust programming language with the support of `crawl-delay`, `sitemap`, `host`
 and universal `*` match extensions (according to the RFC specification).
+
+#### Features
+
+- `time` to enable
+
+#### Examples
+
+```rust
+
+```
 
 #### Links
 
@@ -24,3 +36,9 @@ and universal `*` match extensions (according to the RFC specification).
   on Google.com
 - [How Google interprets the robots.txt specification](https://developers.google.com/search/docs/crawling-indexing/robots/robots_txt)
   on Google.com
+
+#### Other projects
+
+- [Smerity/texting_robots](https://github.com/Smerity/texting_robots): 
+  - does not perform the longest match on the user agent directive
+  - matches the path `shark/fish` to the pattern `/fish*$`
