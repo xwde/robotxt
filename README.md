@@ -36,6 +36,7 @@ and universal `*` match extensions (according to the RFC specification).
   on Google.com
 - [How Google interprets the robots.txt specification](https://developers.google.com/search/docs/crawling-indexing/robots/robots_txt)
   on Google.com
+- [What is a robots.txt file](https://moz.com/learn/seo/robotstxt) on Moz.com
 
 #### Other projects
 

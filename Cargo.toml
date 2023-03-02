@@ -26,9 +26,8 @@ path = "./lib.rs"
 
 [features]
 default = []
-time = ["dep:time"]
 
 [dependencies]
 regex = { version = "1.7.1" }
 url = { version = "2.3.1" }
-time = { version = "0.3.20", optional = true }
+nom = { version = "7.1.3" }

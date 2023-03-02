@@ -24,6 +24,7 @@ impl From<RegexError> for WildcardError {
         Self::RegexError(error)
     }
 }
+
 impl Error for WildcardError {}
 
 /// The `Wildcard` struct provides efficient pattern matching for the `Rule` struct.
@@ -52,10 +53,10 @@ impl Wildcard {
 
         static STAR_KILLER: OnceLock<Regex> = OnceLock::new();
         let star_killer = STAR_KILLER.get_or_init(|| Regex::new(r"\*+").unwrap());
+        let pattern = star_killer.replace_all(pattern, "*");
 
-        let regex = star_killer.replace_all(pattern, "*");
         let regex = '^'.to_string()
-            + &regex::escape(&regex)
+            + &regex::escape(&pattern)
                 .replace("\\*", ".*")
                 .replace("\\$", "$");
         let regex = RegexBuilder::new(&regex)
@@ -121,6 +122,20 @@ impl UserAgentRule {
     }
 }
 
+impl Display for UserAgentRule {
+    fn fmt(&self, f: &mut Formatter<'_>) -> FmtResult {
+        const ALLOW: &str = "allow";
+        const DISALLOW: &str = "disallow";
+
+        let directive = match &self.allow {
+            true => ALLOW,
+            false => DISALLOW,
+        };
+
+        write!(f, "{directive}: {}", self.pattern)
+    }
+}
+
 impl PartialEq<Self> for UserAgentRule {
     fn eq(&self, other: &Self) -> bool {
         self.pattern.eq(&other.pattern)
@@ -150,20 +165,29 @@ mod matching {
 
     #[test]
     fn root_none() {
-        let _r = UserAgentRule::new("/", true).unwrap();
-        // TODO
+        let r = UserAgentRule::new("/", true).unwrap();
+
+        // Matches:
+        assert!(r.is_match("/fish"));
     }
 
     #[test]
     fn root_universal() {
-        let _r = UserAgentRule::new("/*", true).unwrap();
-        // TODO
+        let r = UserAgentRule::new("/*", true).unwrap();
+
+        // Matches:
+        assert!(r.is_match("/fish"));
     }
 
     #[test]
     fn root_ending() {
-        let _r = UserAgentRule::new("/$", true).unwrap();
-        // TODO
+        let r = UserAgentRule::new("/$", true).unwrap();
+
+        // Matches:
+        assert!(r.is_match("/"));
+
+        // Doesn't match:
+        assert!(!r.is_match("/fish"));
     }
 
     #[test]
