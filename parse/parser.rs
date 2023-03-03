@@ -1,5 +1,7 @@
+use std::cmp::min;
 use std::fmt::{Debug, Formatter, Result as FmtResult};
 
+use bstr::ByteSlice;
 use nom::branch::{alt, Alt};
 use nom::bytes::complete::{tag, tag_no_case, take_while};
 use nom::character::complete::{space0, space1};
@@ -26,12 +28,12 @@ pub enum Directive<'a> {
 impl Debug for Directive<'_> {
     fn fmt(&self, f: &mut Formatter<'_>) -> FmtResult {
         match &self {
-            Self::UserAgent(_) => todo!(),
-            Self::Allow(_) => todo!(),
-            Self::Disallow(_) => todo!(),
-            Self::CrawlDelay(_) => todo!(),
-            Self::Sitemap(_) => todo!(),
-            Self::Unknown(_) => todo!(),
+            Self::UserAgent(v) => f.debug_tuple("user-agent").field(&v.as_bstr()).finish(),
+            Self::Allow(v) => f.debug_tuple("allow").field(&v.as_bstr()).finish(),
+            Self::Disallow(v) => f.debug_tuple("disallow").field(&v.as_bstr()).finish(),
+            Self::CrawlDelay(v) => f.debug_tuple("crawl-delay").field(&v.as_bstr()).finish(),
+            Self::Sitemap(v) => f.debug_tuple("sitemap").field(&v.as_bstr()).finish(),
+            Self::Unknown(v) => f.debug_tuple("unknown").field(&v.as_bstr()).finish(),
         }
     }
 }
@@ -46,10 +48,8 @@ where
 {
     // Tries to match to the target list.
     let (input, _) = preceded(space0, alt(targets))(input)?;
-
     // Tries to match the separator (colon or spaces).
     let (input, _) = alt((preceded(space0, tag(":")), space1))(input)?;
-
     // Tries to retrieve the value of the kv pair.
     let (input, line) = take_while(b_not_line_ending_or_comment)(input)?;
 
@@ -57,7 +57,8 @@ where
     let (input, _) = opt(preceded(tag("#"), take_while(b_not_line_ending)))(input)?;
     let (input, _) = b_consume_newline(input)?;
 
-    // let line = line.trim();
+    // TODO let line = line.trim(); or .trim_ascii();
+    let line = line.trim();
     Ok((input, line))
 }
 
@@ -75,7 +76,11 @@ fn user_agent(input: &[u8]) -> NomResult<&[u8], Directive> {
 
 /// Attempts to parse the `allow` directive.
 fn allow(input: &[u8]) -> NomResult<&[u8], Directive> {
-    let matcher = (tag_no_case("allow"), tag_no_case("alow"));
+    let matcher = (
+        tag_no_case("allow"),
+        tag_no_case("alow"),
+        tag_no_case("allaw"),
+    );
 
     let (input, rule) = builder(input, matcher)?;
     Ok((input, Directive::Allow(rule)))
@@ -136,10 +141,11 @@ fn unknown(input: &[u8]) -> NomResult<&[u8], Directive> {
 /// https://developers.google.com/search/docs/crawling-indexing/robots/robots_txt
 pub const BYTES_LIMIT: usize = 512_000;
 
-///
+/// Parses the input slices into the list of directives.
 pub fn parse(input: &[u8]) -> NomResult<&[u8], Vec<Directive>> {
     // Limits the input to 500 kibibytes.
-    let input = &input[0..BYTES_LIMIT];
+    let limit = min(input.len(), BYTES_LIMIT);
+    let input = &input[0..limit];
 
     // Removes the byte order mark (BOM).
     let (input, _) = opt(tag(b"\xef"))(input)?;
@@ -150,4 +156,10 @@ pub fn parse(input: &[u8]) -> NomResult<&[u8], Vec<Directive>> {
     let matcher = alt((user_agent, allow, disallow, crawl_delay, sitemap, unknown));
     let (input, (directives, _)) = many_till(matcher, eof)(input)?;
     Ok((input, directives))
+}
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn foo() {}
 }

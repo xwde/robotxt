@@ -1,7 +1,8 @@
 use std::cmp::Ordering;
 use std::error::Error;
 use std::fmt::{Display, Formatter, Result as FmtResult};
-use std::sync::OnceLock;
+
+use once_cell::sync::OnceCell;
 
 use regex::{Error as RegexError, Regex, RegexBuilder};
 
@@ -30,8 +31,8 @@ impl Error for WildcardError {}
 /// The `Wildcard` struct provides efficient pattern matching for the `Rule` struct.
 #[derive(Debug, Clone)]
 enum Wildcard {
-    Ending(String),
-    Universal(String),
+    // Ending(String),
+    // Universal(String),
     Both(Regex),
 }
 
@@ -51,7 +52,8 @@ impl Wildcard {
         //     todo!()
         // }
 
-        static STAR_KILLER: OnceLock<Regex> = OnceLock::new();
+        // TODO replace once_cell with std::sync::OnceLock once stable
+        static STAR_KILLER: OnceCell<Regex> = OnceCell::new();
         let star_killer = STAR_KILLER.get_or_init(|| Regex::new(r"\*+").unwrap());
         let pattern = star_killer.replace_all(pattern, "*");
 
@@ -70,8 +72,8 @@ impl Wildcard {
     /// Returns true if the path matches the pattern of this wildcard.
     pub fn is_match(&self, path: &str) -> bool {
         match &self {
-            Self::Ending(_) => todo!(),
-            Self::Universal(_) => todo!(),
+            // Self::Ending(_) => todo!(),
+            // Self::Universal(_) => todo!(),
             Self::Both(r) => r.is_match(path),
         }
     }

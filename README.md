@@ -42,4 +42,4 @@ and universal `*` match extensions (according to the RFC specification).
 
 - [Smerity/texting_robots](https://github.com/Smerity/texting_robots): 
   - does not perform the longest match on the user agent directive
-  - matches the path `shark/fish` to the pattern `/fish*$`
+  - matches the path `/shark/fish` to the pattern `/fish*$`
