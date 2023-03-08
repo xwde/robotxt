@@ -106,6 +106,7 @@ dependencies = [
  "bstr",
  "nom",
  "once_cell",
+ "percent-encoding",
  "regex",
  "url",
 ]

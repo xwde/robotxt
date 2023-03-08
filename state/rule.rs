@@ -3,62 +3,57 @@ use std::error::Error;
 use std::fmt::{Display, Formatter, Result as FmtResult};
 
 use once_cell::sync::OnceCell;
-
+use percent_encoding::{utf8_percent_encode, AsciiSet, CONTROLS};
 use regex::{Error as RegexError, Regex, RegexBuilder};
 
-/// An error type indicating that a `Wildcard` could not be correctly parsed.
+/// An error type indicating that a `Wildcard` could not be parsed correctly.
 #[derive(Debug, Clone)]
 pub enum WildcardError {
-    RegexError(RegexError),
+    // EndingTooMany(usize),
+    // EndingPosition(usize),
+    Regex(RegexError),
 }
 
 impl Display for WildcardError {
     fn fmt(&self, f: &mut Formatter<'_>) -> FmtResult {
         match &self {
-            Self::RegexError(e) => Display::fmt(e, f),
+            Self::Regex(e) => Display::fmt(e, f),
         }
     }
 }
 
 impl From<RegexError> for WildcardError {
     fn from(error: RegexError) -> Self {
-        Self::RegexError(error)
+        Self::Regex(error)
     }
 }
 
 impl Error for WildcardError {}
 
-/// The `Wildcard` struct provides efficient pattern matching for the `Rule` struct.
+/// The `Wildcard` struct provides efficient pattern matching for wildcards.
 #[derive(Debug, Clone)]
-enum Wildcard {
+pub enum Wildcard {
     // Ending(String),
     // Universal(String),
     Both(Regex),
 }
 
 impl Wildcard {
-    /// Creates a new `Wildcard` with the specified pattern or
-    /// returns `None` if the specified pattern does not contain any wildcard.
-    pub fn new(pattern: &str) -> Result<Option<Wildcard>, WildcardError> {
+    /// Creates a new `Wildcard` with the specified pattern or returns
+    /// `None` if the specified pattern does not contain any wildcard.
+    pub fn new(pattern: &str) -> Result<Option<Self>, WildcardError> {
         if !pattern.contains('$') && !pattern.contains('*') {
             return Ok(None);
         }
 
-        // if pattern.contains('$') && !pattern.contains('*') {
-        //     todo!()
-        // }
+        // TODO only end of pattern wildcard
+        // if pattern.contains('$') && !pattern.contains('*') { }
 
-        // if pattern.contains('*') && !pattern.contains('$') {
-        //     todo!()
-        // }
-
-        // TODO replace once_cell with std::sync::OnceLock once stable
-        static STAR_KILLER: OnceCell<Regex> = OnceCell::new();
-        let star_killer = STAR_KILLER.get_or_init(|| Regex::new(r"\*+").unwrap());
-        let pattern = star_killer.replace_all(pattern, "*");
+        // TODO only universal wildcard
+        // if pattern.contains('*') && !pattern.contains('$') { }
 
         let regex = '^'.to_string()
-            + &regex::escape(&pattern)
+            + &regex::escape(pattern)
                 .replace("\\*", ".*")
                 .replace("\\$", "$");
         let regex = RegexBuilder::new(&regex)
@@ -69,7 +64,7 @@ impl Wildcard {
         Ok(Some(Self::Both(regex)))
     }
 
-    /// Returns true if the path matches the pattern of this wildcard.
+    /// Returns true if the path matches the wildcard pattern.
     pub fn is_match(&self, path: &str) -> bool {
         match &self {
             // Self::Ending(_) => todo!(),
@@ -79,23 +74,19 @@ impl Wildcard {
     }
 }
 
-/// The `UserAgentRule` structs provides an efficient way to find
-/// the longest match (with a allow priority) in any sortable container.
+/// The `Rule` struct provides a convenient and efficient way to process
+/// and to match robots.txt provided patterns with relative paths.
 #[derive(Debug, Clone)]
-pub struct UserAgentRule {
+pub struct Rule {
     pattern: String,
     allow: bool,
     wildcard: Option<Wildcard>,
 }
 
-impl UserAgentRule {
-    /// Creates a new `UserAgentRule` with the specified pattern and permission.
+impl Rule {
+    /// Creates a new `Rule` with the specified pattern and permission.
     pub fn new(pattern: &str, allow: bool) -> Result<Self, WildcardError> {
-        let pattern = match pattern.starts_with('/') {
-            false => '/'.to_string() + pattern,
-            true => pattern.to_string(),
-        };
-
+        let pattern = Self::normalize(pattern);
         let wildcard = Wildcard::new(pattern.as_str())?;
 
         Ok(Self {
@@ -105,54 +96,49 @@ impl UserAgentRule {
         })
     }
 
-    /// Returns a string slice containing the original pattern.
-    pub fn pattern(&self) -> &str {
-        self.pattern.as_str()
-    }
-
-    /// Returns true if the path matches the pattern of this rule.
+    /// Returns true if the path matches the pattern.
     pub fn is_match(&self, path: &str) -> bool {
+        let path = Self::normalize(path);
         match &self.wildcard {
-            None => path.starts_with(&self.pattern),
-            Some(w) => w.is_match(path),
+            None => path.starts_with(self.pattern.as_str()),
+            Some(wildcard) => wildcard.is_match(path.as_str()),
         }
     }
 
-    /// Returns the permission of this rule.
-    pub fn is_allow(&self) -> bool {
+    /// Returns true if allowed.
+    pub fn is_allowed(&self) -> bool {
         self.allow
     }
-}
 
-impl Display for UserAgentRule {
-    fn fmt(&self, f: &mut Formatter<'_>) -> FmtResult {
-        const ALLOW: &str = "allow";
-        const DISALLOW: &str = "disallow";
+    /// Returns the prefixed & percent-encoded path.
+    fn normalize(path: &str) -> String {
+        // TODO replace once_cell with std::sync::OnceLock once stable
+        static FRAGMENT: OnceCell<AsciiSet> = OnceCell::new();
+        let fragment = FRAGMENT.get_or_init(|| CONTROLS.add(b' ').add(b'"').add(b'<').add(b'>'));
+        let path = utf8_percent_encode(path, fragment).to_string();
 
-        let directive = match &self.allow {
-            true => ALLOW,
-            false => DISALLOW,
-        };
-
-        write!(f, "{directive}: {}", self.pattern)
+        match path.starts_with('/') {
+            false => '/'.to_string() + path.as_str(),
+            true => path,
+        }
     }
 }
 
-impl PartialEq<Self> for UserAgentRule {
+impl PartialEq<Self> for Rule {
     fn eq(&self, other: &Self) -> bool {
         self.pattern.eq(&other.pattern)
     }
 }
 
-impl Eq for UserAgentRule {}
+impl Eq for Rule {}
 
-impl PartialOrd<Self> for UserAgentRule {
+impl PartialOrd<Self> for Rule {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
         Some(self.cmp(other))
     }
 }
 
-impl Ord for UserAgentRule {
+impl Ord for Rule {
     fn cmp(&self, other: &Self) -> Ordering {
         match other.pattern.len().cmp(&self.pattern.len()) {
             Ordering::Equal => other.allow.cmp(&self.allow),
@@ -167,7 +153,7 @@ mod matching {
 
     #[test]
     fn root_none() {
-        let r = UserAgentRule::new("/", true).unwrap();
+        let r = Rule::new("/", true).unwrap();
 
         // Matches:
         assert!(r.is_match("/fish"));
@@ -175,7 +161,7 @@ mod matching {
 
     #[test]
     fn root_universal() {
-        let r = UserAgentRule::new("/*", true).unwrap();
+        let r = Rule::new("/*", true).unwrap();
 
         // Matches:
         assert!(r.is_match("/fish"));
@@ -183,7 +169,7 @@ mod matching {
 
     #[test]
     fn root_ending() {
-        let r = UserAgentRule::new("/$", true).unwrap();
+        let r = Rule::new("/$", true).unwrap();
 
         // Matches:
         assert!(r.is_match("/"));
@@ -194,7 +180,7 @@ mod matching {
 
     #[test]
     fn simple() {
-        let r = UserAgentRule::new("/fish", true).unwrap();
+        let r = Rule::new("/fish", true).unwrap();
 
         // Matches:
         assert!(r.is_match("/fish"));
@@ -213,7 +199,7 @@ mod matching {
 
     #[test]
     fn folder() {
-        let r = UserAgentRule::new("/fish/", true).unwrap();
+        let r = Rule::new("/fish/", true).unwrap();
 
         // Matches:
         assert!(r.is_match("/fish/"));
@@ -229,7 +215,7 @@ mod matching {
 
     #[test]
     fn universal_end() {
-        let r = UserAgentRule::new("/fish*", true).unwrap();
+        let r = Rule::new("/fish*", true).unwrap();
 
         // Matches:
         assert!(r.is_match("/fish"));
@@ -248,7 +234,7 @@ mod matching {
 
     #[test]
     fn universal_mid() {
-        let r = UserAgentRule::new("/*.php", true).unwrap();
+        let r = Rule::new("/*.php", true).unwrap();
 
         // Matches:
         assert!(r.is_match("/index.php"));
@@ -265,7 +251,7 @@ mod matching {
 
     #[test]
     fn universal_mid2() {
-        let r = UserAgentRule::new("/fish*.php", true).unwrap();
+        let r = Rule::new("/fish*.php", true).unwrap();
 
         // Matches:
         assert!(r.is_match("/fish.php"));
@@ -277,7 +263,7 @@ mod matching {
 
     #[test]
     fn both_wildcards() {
-        let r = UserAgentRule::new("/*.php$", true).unwrap();
+        let r = Rule::new("/*.php$", true).unwrap();
 
         // Matches:
         assert!(r.is_match("/filename.php"));

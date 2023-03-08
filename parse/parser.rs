@@ -1,5 +1,4 @@
 use std::cmp::min;
-use std::fmt::{Debug, Formatter, Result as FmtResult};
 
 use bstr::ByteSlice;
 use nom::branch::{alt, Alt};
@@ -11,43 +10,19 @@ use nom::multi::many_till;
 use nom::sequence::preceded;
 use nom::{Err as NomErr, IResult as NomResult};
 
+use crate::parse::Directive;
 use crate::parse::{b_consume_newline, b_not_line_ending, b_not_line_ending_or_comment};
-
-/// The `Directive` enum represent every
-/// supported `robots.txt` directive.
-#[derive(Clone, Copy, PartialEq, Eq)]
-pub enum Directive<'a> {
-    UserAgent(&'a [u8]),
-    Allow(&'a [u8]),
-    Disallow(&'a [u8]),
-    CrawlDelay(&'a [u8]),
-    Sitemap(&'a [u8]),
-    Unknown(&'a [u8]),
-}
-
-impl Debug for Directive<'_> {
-    fn fmt(&self, f: &mut Formatter<'_>) -> FmtResult {
-        match &self {
-            Self::UserAgent(v) => f.debug_tuple("user-agent").field(&v.as_bstr()).finish(),
-            Self::Allow(v) => f.debug_tuple("allow").field(&v.as_bstr()).finish(),
-            Self::Disallow(v) => f.debug_tuple("disallow").field(&v.as_bstr()).finish(),
-            Self::CrawlDelay(v) => f.debug_tuple("crawl-delay").field(&v.as_bstr()).finish(),
-            Self::Sitemap(v) => f.debug_tuple("sitemap").field(&v.as_bstr()).finish(),
-            Self::Unknown(v) => f.debug_tuple("unknown").field(&v.as_bstr()).finish(),
-        }
-    }
-}
 
 ///
 fn builder<'a, O, E: NomParseError<&'a [u8]>>(
     input: &'a [u8],
-    targets: impl Alt<&'a [u8], O, E>,
+    spellings: impl Alt<&'a [u8], O, E>,
 ) -> NomResult<&'a [u8], &'a [u8]>
 where
     NomErr<NomError<&'a [u8]>>: From<NomErr<E>>,
 {
-    // Tries to match to the target list.
-    let (input, _) = preceded(space0, alt(targets))(input)?;
+    // Tries to match to the spelling list.
+    let (input, _) = preceded(space0, alt(spellings))(input)?;
     // Tries to match the separator (colon or spaces).
     let (input, _) = alt((preceded(space0, tag(":")), space1))(input)?;
     // Tries to retrieve the value of the kv pair.
@@ -141,8 +116,8 @@ fn unknown(input: &[u8]) -> NomResult<&[u8], Directive> {
 /// https://developers.google.com/search/docs/crawling-indexing/robots/robots_txt
 pub const BYTES_LIMIT: usize = 512_000;
 
-/// Parses the input slices into the list of directives.
-pub fn parse(input: &[u8]) -> NomResult<&[u8], Vec<Directive>> {
+/// Parses the input slice into the list of directives.
+fn parse(input: &[u8]) -> NomResult<&[u8], Vec<Directive>> {
     // Limits the input to 500 kibibytes.
     let limit = min(input.len(), BYTES_LIMIT);
     let input = &input[0..limit];
@@ -155,7 +130,17 @@ pub fn parse(input: &[u8]) -> NomResult<&[u8], Vec<Directive>> {
     // Creates and runs the matcher.
     let matcher = alt((user_agent, allow, disallow, crawl_delay, sitemap, unknown));
     let (input, (directives, _)) = many_till(matcher, eof)(input)?;
+
     Ok((input, directives))
+}
+
+/// Parses the input slice into the list of directives.
+pub fn into_directives(input: &[u8]) -> Vec<Directive> {
+    // Discards the possibility of any error as `unknown` consumes anything.
+    match parse(input) {
+        Ok((_, directives)) => directives,
+        Err(_) => unreachable!(),
+    }
 }
 
 #[cfg(test)]
