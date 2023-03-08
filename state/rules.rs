@@ -30,6 +30,11 @@ impl Rules {
         true
     }
 
+    /// Returns the specified set of rules.
+    pub fn rules(&self) -> Vec<Rule> {
+        self.rules.clone()
+    }
+
     /// Returns the specified crawl delay.
     pub fn delay(&self) -> Option<Duration> {
         self.delay

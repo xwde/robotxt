@@ -22,20 +22,26 @@ pub enum Directive<'a> {
 impl Debug for Directive<'_> {
     fn fmt(&self, f: &mut Formatter<'_>) -> FmtResult {
         match &self {
-            Self::UserAgent(v) => f.debug_tuple("user-agent").field(&v.as_bstr()).finish(),
-            Self::Allow(v) => f.debug_tuple("allow").field(&v.as_bstr()).finish(),
-            Self::Disallow(v) => f.debug_tuple("disallow").field(&v.as_bstr()).finish(),
-            Self::CrawlDelay(v) => f.debug_tuple("crawl-delay").field(&v.as_bstr()).finish(),
-            Self::Sitemap(v) => f.debug_tuple("sitemap").field(&v.as_bstr()).finish(),
-            Self::Unknown(v) => f.debug_tuple("unknown").field(&v.as_bstr()).finish(),
+            Self::UserAgent(v) => f.debug_tuple("UserAgent").field(&v.as_bstr()).finish(),
+            Self::Allow(v) => f.debug_tuple("Allow").field(&v.as_bstr()).finish(),
+            Self::Disallow(v) => f.debug_tuple("Disallow").field(&v.as_bstr()).finish(),
+            Self::CrawlDelay(v) => f.debug_tuple("Crawl-delay").field(&v.as_bstr()).finish(),
+            Self::Sitemap(v) => f.debug_tuple("Sitemap").field(&v.as_bstr()).finish(),
+            Self::Unknown(v) => f.debug_tuple("Unknown").field(&v.as_bstr()).finish(),
         }
     }
 }
 
 impl Directive<'_> {
     ///
-    pub fn try_agent(&self) -> Option<String> {
-        todo!()
+    pub fn try_agent(&self) -> Option<(String, &[u8])> {
+        match &self {
+            Directive::UserAgent(u) => {
+                let str = String::from_utf8(u.to_vec()).ok()?;
+                Some((str, u))
+            }
+            _ => None,
+        }
     }
 
     ///

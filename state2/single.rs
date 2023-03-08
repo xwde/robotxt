@@ -1,9 +1,10 @@
+use std::io::Read;
 use std::time::Duration;
 use url::Url;
 
 use crate::parse::{into_directives, Directive};
-use crate::state::Rules;
-use crate::DEFAULT;
+use crate::state::{Rule, Rules};
+use crate::state2::DEFAULT_UA;
 
 ///
 #[derive(Debug, Clone)]
@@ -14,71 +15,53 @@ pub struct Robots {
 }
 
 impl Robots {
-    ///
-    pub fn agent(&self) -> &String {
-        &self.agent
-    }
-
-    ///
-    pub fn is_match(&self, path: &str) -> bool {
-        self.rules.is_match(path)
-    }
-
-    ///
-    pub fn sitemaps(&self) -> &Vec<Url> {
-        &self.sitemaps
-    }
-
-    ///
-    pub fn delay(&self) -> Option<Duration> {
-        self.rules.delay()
-    }
-}
-
-impl Robots {
-    pub fn from_directives(directives: Vec<Directive>, agent: &str) -> Self {
-        // Collects all sitemaps.
-        let sitemaps = directives.iter().filter_map(|u| u.try_sitemap());
-        let sitemaps = sitemaps.collect();
-
-        let agent = agent.trim().to_lowercase();
-        // Finds all matching user-agents.
-        let agent = directives.iter().filter_map(|u| match *u {
-            UserAgent(u) => {
-                let u_str = String::from_utf8(u.to_vec()).ok()?;
-                let u_str = u_str.trim().to_lowercase();
-                match agent.starts_with(u_str.as_str()) {
-                    true => Some((u_str, u)),
-                    false => None,
-                }
+    fn agents(directives: &Vec<Directive>, ua: &str) -> (String, Vec<u8>) {
+        let agent = ua.trim().to_lowercase();
+        let mut ans = (DEFAULT_UA.to_string(), DEFAULT_UA.as_bytes());
+        for directive in directives {
+            match directive.try_agent() {
+                Some((s, u)) => match agent.starts_with(s.as_str()) {
+                    true => ans = (s, u),
+                    false => continue,
+                },
+                None => continue,
             }
-            _ => None,
-        });
+        }
 
+        (ans.0, ans.1.to_vec())
+    }
+
+    ///
+    pub fn from_directives(directives: Vec<Directive>, ua: &str) -> Self {
         // Finds the longest matching user-agent.
-        let agent: Vec<_> = agent.collect();
-        let agent = agent.iter().max_by(|l, r| l.0.len().cmp(&r.0.len()));
-        let default = (DEFAULT.to_string(), DEFAULT.as_bytes());
-        let (agent, agent_u8) = agent.unwrap_or(&default);
+        let agent = Self::agents(&directives, ua);
+
+        // Captures everything before the first ua if default.
+        let mut capturing = agent.1.eq(DEFAULT_UA.as_bytes());
 
         let mut rules = Vec::new();
         let mut delay = None;
-
-        // Captures everything before the first ua if default.
-        let mut capturing = (*agent_u8).eq(DEFAULT.as_bytes());
+        let mut sitemaps = Vec::new();
 
         use Directive::*;
         for directive in directives {
             match directive {
                 UserAgent(u) => {
                     if !capturing {
-                        capturing = u.eq(*agent_u8);
+                        capturing = u.eq(agent.1.as_slice());
                     }
 
                     continue;
                 }
 
-                Sitemap(_) => continue,
+                Sitemap(_) => {
+                    if let Some(u) = directive.try_sitemap() {
+                        sitemaps.push(u)
+                    }
+
+                    continue;
+                }
+
                 Unknown(_) => continue,
                 _ => capturing = false,
             }
@@ -102,20 +85,54 @@ impl Robots {
         }
 
         Self {
-            agent: agent.to_string(),
+            agent: agent.0,
             rules: Rules::new(rules, delay),
             sitemaps,
         }
     }
 
-    pub fn from_slice(robots: &[u8], agent: &str) -> Self {
+    ///
+    pub fn from_slice(robots: &[u8], ua: &str) -> Self {
         let directives = into_directives(robots);
-        Self::from_directives(directives, agent)
+        Self::from_directives(directives, ua)
     }
 
-    pub fn from_string(robots: &str, agent: &str) -> Self {
+    ///
+    pub fn from_string(robots: &str, ua: &str) -> Self {
         let robots = robots.as_bytes();
-        Self::from_slice(robots, agent)
+        Self::from_slice(robots, ua)
+    }
+
+    ///
+    pub fn from_reader<R: Read>(reader: R, ua: &str) -> Self {
+        todo!()
+    }
+}
+
+impl Robots {
+    ///
+    pub fn is_match(&self, path: &str) -> bool {
+        self.rules.is_match(path)
+    }
+
+    ///
+    pub fn agent(&self) -> &String {
+        &self.agent
+    }
+
+    ///
+    pub fn rules(&self) -> Vec<Rule> {
+        self.rules.rules()
+    }
+
+    ///
+    pub fn delay(&self) -> Option<Duration> {
+        self.rules.delay()
+    }
+
+    ///
+    pub fn sitemaps(&self) -> &Vec<Url> {
+        &self.sitemaps
     }
 }
 

@@ -4,4 +4,4 @@ pub use single::*;
 mod multi;
 pub use multi::*;
 
-pub const DEFAULT: &str = "*";
+const DEFAULT_UA: &str = "*";
