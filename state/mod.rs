@@ -1,8 +1,10 @@
-// mod agent;
-// pub use agent::*;
+mod common;
+use common::*;
 
-mod rule;
-pub use rule::*;
+mod single;
+pub use single::*;
 
-mod rules;
-pub use rules::*;
+mod multi;
+pub use multi::*;
+
+const DEFAULT: &str = "*";
