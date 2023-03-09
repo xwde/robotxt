@@ -17,10 +17,6 @@ The implementation of the robots.txt protocol (or URL exclusion protocol) in
 Rust programming language with the support of `crawl-delay`, `sitemap`, `host`
 and universal `*` match extensions (according to the RFC specification).
 
-#### Features
-
-- `time` to enable
-
 #### Examples
 
 - Parse only directives related to the specified `user-agent` in the provided
@@ -43,12 +39,11 @@ and universal `*` match extensions (according to the RFC specification).
 
 - [Request for Comments: 9309](https://www.rfc-editor.org/rfc/rfc9309.txt) on
   RFC-Editor.com
-- [Robots.txt](https://en.wikipedia.org/wiki/Robots.txt) on Wikipedia.org
 - [Introduction to Robots.txt](https://developers.google.com/search/docs/crawling-indexing/robots/intro)
   on Google.com
-- [How Google interprets the robots.txt specification](https://developers.google.com/search/docs/crawling-indexing/robots/robots_txt)
+- [How Google interprets Robots.txt](https://developers.google.com/search/docs/crawling-indexing/robots/robots_txt)
   on Google.com
-- [What is a robots.txt file](https://moz.com/learn/seo/robotstxt) on Moz.com
+- [What is Robots.txt file](https://moz.com/learn/seo/robotstxt) on Moz.com
 
 #### Other projects
 

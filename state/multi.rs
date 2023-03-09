@@ -4,10 +4,10 @@ use std::time::Duration;
 
 use url::Url;
 
-use crate::parse::{into_directives, Directive, BYTES_LIMIT};
-use crate::parse::{Rule, Rules};
+use crate::parse::{into_directives, Directive, Rules, BYTES_LIMIT};
 
-///
+/// The `RobotsFile` struct represents all directives of the
+/// provided `robots.txt` file.
 #[derive(Debug, Clone)]
 pub struct RobotsFile {
     rules: HashMap<String, Rules>,
@@ -15,24 +15,26 @@ pub struct RobotsFile {
 }
 
 impl RobotsFile {
-    ///
-    pub fn from_directives(directives: Vec<Directive>) -> Self {
+    /// Creates a new `RobotsFile` from the directives.
+    fn from_directives(directives: Vec<Directive>) -> Self {
+        for directive in directives {}
+
         todo!()
     }
 
-    ///
+    /// Creates a new `RobotsFile` from the byte slice.
     pub fn from_slice(robots: &[u8]) -> Self {
         let directives = into_directives(robots);
         Self::from_directives(directives)
     }
 
-    ///
+    /// Creates a new `RobotsFile` from the string slice.
     pub fn from_string(robots: &str) -> Self {
         let robots = robots.as_bytes();
         Self::from_slice(robots)
     }
 
-    ///
+    /// Creates a new `RobotsFile` from the generic reader.
     pub fn from_reader<R: Read>(reader: R) -> Result<Self, IoError> {
         let reader = reader.take(BYTES_LIMIT as u64);
         let mut reader = BufReader::new(reader);
@@ -46,6 +48,16 @@ impl RobotsFile {
 }
 
 impl RobotsFile {
+    ///
+    fn find(&self, ua: &str) -> Option<Rules> {
+        todo!()
+    }
+
+    /// Returns the longest matching user-agent.
+    pub fn ua(&self, ua: &str) -> String {
+        todo!()
+    }
+
     /// Returns true if the path is allowed for the specified
     /// user-agent in the provided robots.txt file.
     pub fn is_match(&self, ua: &str, path: &str) -> bool {
@@ -53,26 +65,15 @@ impl RobotsFile {
         r.unwrap_or(true)
     }
 
-    ///
-    pub fn rules(&self, ua: &str) -> Vec<Rule> {
-        let r = self.find(ua).map(|ua| ua.rules());
-        r.unwrap_or(Vec::new())
-    }
-
-    ///
+    /// Returns the crawl-delay of the longest matching user-agent.
     pub fn delay(&self, ua: &str) -> Option<Duration> {
         let r = self.find(ua).map(|ua| ua.delay());
         r.flatten()
     }
 
-    ///
+    /// Returns all sitemaps.
     pub fn sitemaps(&self) -> Vec<Url> {
         self.sitemaps.clone()
-    }
-
-    ///
-    fn find(&self, ua: &str) -> Option<Rules> {
-        todo!()
     }
 }
 

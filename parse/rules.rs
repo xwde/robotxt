@@ -15,6 +15,9 @@ impl Rules {
     /// Creates a new `UserAgentData` with the specified rules and delay.
     pub fn new(rules: Vec<Rule>, delay: Option<Duration>) -> Self {
         let mut rules = rules;
+
+        // Rules are sorted by length and permission i.e.
+        // 5a > 4a, 5a > 5d, 5d > 4a
         rules.sort();
         Self { rules, delay }
     }
@@ -28,11 +31,6 @@ impl Rules {
         }
 
         true
-    }
-
-    /// Returns the specified set of rules.
-    pub fn rules(&self) -> Vec<Rule> {
-        self.rules.clone()
     }
 
     /// Returns the specified crawl delay.

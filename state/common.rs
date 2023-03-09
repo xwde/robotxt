@@ -1,7 +1,7 @@
 use std::time::Duration;
 use url::Url;
 
-use crate::parse::{Rule};
+use crate::parse::Rule;
 
 ///
 pub fn try_sitemaps(u: &[u8]) -> Option<Url> {

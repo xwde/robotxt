@@ -3,12 +3,11 @@ use std::time::Duration;
 
 use url::Url;
 
-use crate::parse::{into_directives, Directive, BYTES_LIMIT};
-use crate::parse::{Rule, Rules};
-use crate::state::DEFAULT;
-use crate::state::{try_delay, try_rule, try_sitemaps};
+use crate::parse::{into_directives, Directive, Rules, BYTES_LIMIT};
+use crate::state::{try_delay, try_rule, try_sitemaps, DEFAULT};
 
-///
+/// The `Robots` struct represents the set of directives of the
+/// provided `robots.txt` file related to the specific user-agent.
 #[derive(Debug, Clone)]
 pub struct Robots {
     ua: String,
@@ -17,12 +16,8 @@ pub struct Robots {
 }
 
 impl Robots {
-    ///
-    fn extract_sitemaps(directives: &[Directive]) -> Vec<Url> {
-        todo!()
-    }
-
-    /// Finds the longest matching user-agent and if it should check non-assigned rules.
+    /// Finds the longest matching user-agent and
+    /// if the parser should check non-assigned rules.
     fn find_agent(directives: &[Directive], ua: &str) -> (String, bool) {
         // Collects all uas.
         let uas = directives.iter().filter_map(|ua2| match ua2 {
@@ -47,9 +42,9 @@ impl Robots {
         (uas, default)
     }
 
-    ///
-    pub fn from_directives(directives: Vec<Directive>, ua: &str) -> Self {
-        let (ua, mut captures) = Self::find_agent(directives.as_slice(), ua);
+    /// Creates a new `Robots` from the directives.
+    fn from_directives(directives: &[Directive], ua: &str) -> Self {
+        let (ua, mut captures) = Self::find_agent(directives, ua);
         let mut in_group = false;
 
         let mut rules = Vec::new();
@@ -60,7 +55,7 @@ impl Robots {
             match directive {
                 Directive::UserAgent(u) => {
                     if !in_group || !captures {
-                        captures = u == ua.as_bytes()
+                        captures = *u == ua.as_bytes()
                     }
 
                     in_group = true;
@@ -104,19 +99,19 @@ impl Robots {
         Self { ua, rules, maps }
     }
 
-    ///
+    /// Creates a new `Robots` from the byte slice.
     pub fn from_slice(robots: &[u8], ua: &str) -> Self {
         let directives = into_directives(robots);
-        Self::from_directives(directives, ua)
+        Self::from_directives(directives.as_slice(), ua)
     }
 
-    ///
+    /// Creates a new `Robots` from the string slice.
     pub fn from_string(robots: &str, ua: &str) -> Self {
         let robots = robots.as_bytes();
         Self::from_slice(robots, ua)
     }
 
-    ///
+    /// Creates a new `Robots` from the generic reader.
     pub fn from_reader<R: Read>(reader: R, ua: &str) -> Result<Self, IoError> {
         let reader = reader.take(BYTES_LIMIT as u64);
         let mut reader = BufReader::new(reader);
@@ -130,42 +125,88 @@ impl Robots {
 }
 
 impl Robots {
-    /// Returns true if the path is allowed for the provided robots.txt file.
+    /// Returns the longest matching user-agent.
+    pub fn ua(&self) -> String {
+        self.ua.clone()
+    }
+
+    /// Returns true if the path is allowed for the longest matching user-agent.
     pub fn is_match(&self, path: &str) -> bool {
         self.rules.is_match(path)
     }
 
-    ///
-    pub fn ua(&self) -> &String {
-        &self.ua
-    }
-
-    ///
-    pub fn rules(&self) -> Vec<Rule> {
-        self.rules.rules()
-    }
-
-    ///
+    /// Returns the crawl-delay of the longest matching user-agent.
     pub fn delay(&self) -> Option<Duration> {
         self.rules.delay()
     }
 
-    /// Returns all sitemaps specified in the provided robots.txt file.
-    pub fn sitemaps(&self) -> &Vec<Url> {
-        &self.maps
+    /// Returns all sitemaps.
+    pub fn sitemaps(&self) -> Vec<Url> {
+        self.maps.clone()
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use std::fs::read_to_string;
-
     use super::*;
 
+    static DIRECTIVES: &[Directive] = &[
+        Directive::UserAgent(b"googlebot-news"),
+        Directive::Allow(b"/1"),
+        Directive::Disallow(b"/"),
+        Directive::UserAgent(b"*"),
+        Directive::Allow(b"/2"),
+        Directive::Disallow(b"/"),
+        Directive::UserAgent(b"googlebot"),
+        Directive::Allow(b"/3"),
+        Directive::Disallow(b"/"),
+    ];
+
     #[test]
-    fn r2oo() {
-        let r = read_to_string("./sample/google.txt").unwrap();
-        let r = Robots::from_string(r.as_str(), "AdsBot-Google");
-        dbg!(r);
+    fn specific() {
+        let r = Robots::from_directives(DIRECTIVES, "googlebot-news");
+
+        // Matches:
+        assert!(r.is_match("/1"));
+
+        // Doesn't match:
+        assert!(!r.is_match("/2"));
+        assert!(!r.is_match("/3"));
+    }
+
+    #[test]
+    fn strict() {
+        let r = Robots::from_directives(DIRECTIVES, "googlebot");
+
+        // Matches:
+        assert!(r.is_match("/3"));
+
+        // Doesn't match:
+        assert!(!r.is_match("/1"));
+        assert!(!r.is_match("/2"));
+    }
+
+    #[test]
+    fn missing() {
+        let r = Robots::from_directives(DIRECTIVES, "storebot-google");
+
+        // Matches:
+        assert!(r.is_match("/2"));
+
+        // Doesn't match:
+        assert!(!r.is_match("/1"));
+        assert!(!r.is_match("/3"));
+    }
+
+    #[test]
+    fn partial() {
+        let r = Robots::from_directives(DIRECTIVES, "googlebot-images");
+
+        // Matches:
+        assert!(r.is_match("/3"));
+
+        // Doesn't match:
+        assert!(!r.is_match("/1"));
+        assert!(!r.is_match("/2"));
     }
 }
