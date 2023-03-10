@@ -173,7 +173,7 @@ impl Robots {
 }
 
 #[cfg(test)]
-mod tests {
+mod precedence {
     use super::*;
 
     static DIRECTIVES: &[Directive] = &[

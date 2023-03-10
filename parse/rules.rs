@@ -2,9 +2,8 @@ use std::time::Duration;
 
 use crate::parse::{normalize_path, Rule};
 
-/// The `Rules` struct provides a convenient and efficient storage
-/// option for the data associated with certain user-agent group
-/// for further matching.
+/// The `Rules` struct provides a convenient and efficient storage for
+/// the data associated with certain user-agent for further matching.
 #[derive(Debug, Clone)]
 pub struct Rules {
     rules: Vec<Rule>,
@@ -12,7 +11,7 @@ pub struct Rules {
 }
 
 impl Rules {
-    /// Creates a new `UserAgentData` with the specified rules and delay.
+    /// Creates a new `Rules` with the specified rules and delay.
     pub fn new(rules: Vec<Rule>, delay: Option<Duration>) -> Self {
         let mut rules = rules;
 
@@ -39,7 +38,7 @@ impl Rules {
         true
     }
 
-    /// Returns the specified crawl delay.
+    /// Returns the specified crawl-delay.
     pub fn delay(&self) -> Option<Duration> {
         self.delay
     }

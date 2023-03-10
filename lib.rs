@@ -1,8 +1,8 @@
 #![forbid(unsafe_code)]
 
 //! The implementation of the robots.txt protocol (or URL exclusion protocol)
-//! with the support of `crawl-delay`, `sitemap`, `host` and universal `*`
-//! match extensions (according to the RFC specification).
+//! with the support of `crawl-delay`, `sitemap`, and universal `*` match
+//! extensions (according to the RFC specification).
 //!
 //! ## Examples
 //!
@@ -26,6 +26,9 @@
 
 mod build;
 pub use build::*;
+
+mod fetch;
+pub use fetch::*;
 
 mod parse;
 pub use parse::*;

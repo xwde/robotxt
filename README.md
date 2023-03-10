@@ -14,8 +14,8 @@
 > **Warning** : The library is in active development. Expect breaking changes.
 
 The implementation of the robots.txt protocol (or URL exclusion protocol) in
-Rust programming language with the support of `crawl-delay`, `sitemap`, `host`
-and universal `*` match extensions (according to the RFC specification).
+Rust programming language with the support of `crawl-delay`, `sitemap` and
+universal `*` match extensions (according to the RFC specification).
 
 #### Examples
 
