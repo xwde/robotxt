@@ -24,17 +24,11 @@
 //! ```
 //!
 
-#[cfg(feature = "build")]
 mod build;
-#[cfg(feature = "build")]
 pub use build::*;
 
-#[cfg(feature = "fetch")]
 mod fetch;
-#[cfg(feature = "fetch")]
 pub use fetch::*;
 
-#[cfg(feature = "parse")]
 mod parse;
-#[cfg(feature = "parse")]
 pub use parse::*;

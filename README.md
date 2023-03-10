@@ -17,12 +17,6 @@ The implementation of the robots.txt protocol (or URL exclusion protocol) in
 Rust programming language with the support of `crawl-delay`, `sitemap` and
 universal `*` match extensions (according to the RFC specification).
 
-### Features
-
-- `parse` to enable the `robotxt::Robots` parser. **Enabled by default**.
-- `build` to enable `robots.txt` builder.
-- `fetch` to enable the set of `robots.txt` retrieval utilities.
-
 #### Examples
 
 - Parse the set of directives related to the specific `user-agent` in the

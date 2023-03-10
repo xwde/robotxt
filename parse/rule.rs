@@ -75,6 +75,7 @@ impl Wildcard {
 }
 
 /// Returns the prefixed & percent-encoded path.
+/// NOTE: Expects relative path.
 pub fn normalize_path(path: &str) -> String {
     // TODO replace once_cell with std::sync::OnceLock once stable
     static FRAGMENT: OnceCell<AsciiSet> = OnceCell::new();
