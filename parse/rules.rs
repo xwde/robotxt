@@ -21,7 +21,8 @@ impl Rules {
         Self { rules, delay }
     }
 
-    /// Returns true if the path is allowed for this set of rules.
+    /// Returns true if the relative path is allowed for this set of rules.
+    /// NOTE: Expects relative path.
     pub fn is_match(&self, path: &str) -> bool {
         let path = normalize_path(path);
 
