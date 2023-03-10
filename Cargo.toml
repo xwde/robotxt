@@ -29,8 +29,6 @@ parse = ["dep:nom", "dep:bstr", "dep:regex", "dep:once_cell", "dep:percent-encod
 fetch = []
 build = []
 
-# TODO replace once_cell with std::sync::OnceLock once stable
-
 [dependencies]
 url = { version = "2.3.1" }
 nom = { version = "7.1.3", optional = true }

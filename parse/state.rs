@@ -30,16 +30,28 @@ fn try_delay(u: &[u8]) -> Option<Duration> {
 
 const DEFAULT: &str = "*";
 
-/// The `Robots` struct represents the set of directives of the
-/// provided `robots.txt` file related to the specific user-agent.
+/// The `Robots` struct represents the set of directives related to
+/// the specific `user-agent` in the provided `robots.txt` file.
 #[derive(Debug, Clone)]
 pub struct Robots {
-    ua: String,
+    user_agent: String,
+    always_rule: Option<bool>,
     rules: Rules,
-    maps: Vec<Url>,
+    sitemaps: Vec<Url>,
 }
 
 impl Robots {
+    /// Creates a new `Robots` from the always rule.
+    pub fn from_always(always: bool, ua: &str) -> Self {
+        let ua = ua.trim().to_lowercase();
+        Self {
+            user_agent: ua,
+            always_rule: Some(always),
+            rules: Rules::new(vec![], None),
+            sitemaps: vec![],
+        }
+    }
+
     /// Finds the longest matching user-agent and
     /// if the parser should check non-assigned rules.
     fn find_agent(directives: &[Directive], ua: &str) -> (String, bool) {
@@ -89,7 +101,11 @@ impl Robots {
                 }
 
                 Directive::Sitemap(u) => match try_sitemaps(u) {
-                    Some(u) => maps.push(u),
+                    Some(u) => {
+                        maps.push(u);
+                        continue;
+                    }
+
                     None => continue,
                 },
 
@@ -102,27 +118,29 @@ impl Robots {
             }
 
             match directive {
-                Directive::Allow(u) => match try_rule(u, true) {
-                    Some(u) => rules.push(u),
-                    None => continue,
-                },
+                Directive::Allow(u) | Directive::Disallow(u) => {
+                    let allow = matches!(directive, Directive::Allow(_));
+                    if let Some(u) = try_rule(u, allow) {
+                        rules.push(u)
+                    }
+                }
 
-                Directive::Disallow(u) => match try_rule(u, false) {
-                    Some(u) => rules.push(u),
-                    None => continue,
-                },
-
-                Directive::CrawlDelay(u) => match try_delay(u) {
-                    Some(u) => delay = delay.map(|c| min(c, u)).or(Some(u)),
-                    None => continue,
-                },
+                Directive::CrawlDelay(u) => {
+                    if let Some(u) = try_delay(u) {
+                        delay = delay.map(|c| min(c, u)).or(Some(u));
+                    }
+                }
 
                 _ => unreachable!(),
             }
         }
 
-        let rules = Rules::new(rules, delay);
-        Self { ua, rules, maps }
+        Self {
+            user_agent: ua,
+            always_rule: None,
+            rules: Rules::new(rules, delay),
+            sitemaps: maps,
+        }
     }
 
     /// Creates a new `Robots` from the byte slice.
@@ -153,12 +171,15 @@ impl Robots {
 impl Robots {
     /// Returns the longest matching user-agent.
     pub fn user_agent(&self) -> String {
-        self.ua.clone()
+        self.user_agent.clone()
     }
 
     /// Returns true if the path is allowed for the longest matching user-agent.
     pub fn is_match(&self, path: &str) -> bool {
-        self.rules.is_match(path)
+        match self.always_rule {
+            Some(always) => always,
+            None => self.rules.is_match(path),
+        }
     }
 
     /// Returns the crawl-delay of the longest matching user-agent.
@@ -168,7 +189,7 @@ impl Robots {
 
     /// Returns all sitemaps.
     pub fn sitemaps(&self) -> Vec<Url> {
-        self.maps.clone()
+        self.sitemaps.clone()
     }
 }
 

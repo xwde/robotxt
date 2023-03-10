@@ -57,11 +57,4 @@ fn main() {
 #### Notes
 
 The parser is based on:
-[Smerity/texting_robots](https://github.com/Smerity/texting_robots) with
-following differences:
-
-- finds the longest match on the `user-agent` directives i.e. the user-agent
-  `robotxt` matches the `user-agent: robot` directive.
-- fixes patterns with both wildcards i.e. the path `/shark/fish` does not match
-  the pattern `/fish*$` anymore.
-- sorts patterns by `.len()` and `.is_allowed()` to provide better performance.
+[Smerity/texting_robots](https://github.com/Smerity/texting_robots).
