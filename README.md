@@ -19,15 +19,23 @@ and universal `*` match extensions (according to the RFC specification).
 
 #### Examples
 
-- Parse only directives related to the specified `user-agent` in the provided
-  file.
+- Parse the set of directives related to the specific `user-agent` in the
+  provided `robots.txt` file.
 
 ```rust
-```
+use robotxt::Robots;
 
-- Parse all directives in the provided file.
-
-```rust
+fn main() {
+    let txt = r#"
+      User-Agent: foobot
+      Allow: /example/
+      Disallow: /example/nope.txt
+    "#;
+    
+    let r = Robots::from_string(txt, "foobot");
+    assert!(r.is_match("/example/yeah.txt"));
+    assert!(!r.is_match("/example/nope.txt"));
+}
 ```
 
 #### Links
@@ -43,5 +51,5 @@ and universal `*` match extensions (according to the RFC specification).
 #### Other projects
 
 - [Smerity/texting_robots](https://github.com/Smerity/texting_robots):
-  - does not perform the longest match on the user agent directive
-  - matches the path `/shark/fish` to the pattern `/fish*$`
+  - does not perform the longest match on the `user-agent` directive.
+  - matches the path `/shark/fish` to the pattern `/fish*$`.
