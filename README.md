@@ -48,8 +48,13 @@ fn main() {
   on Google.com
 - [What is Robots.txt file](https://moz.com/learn/seo/robotstxt) on Moz.com
 
-#### Other projects
+#### Notes
 
-- [Smerity/texting_robots](https://github.com/Smerity/texting_robots):
-  - does not perform the longest match on the `user-agent` directive.
-  - matches the path `/shark/fish` to the pattern `/fish*$`.
+The parser is based on:
+[Smerity/texting_robots](https://github.com/Smerity/texting_robots) with
+following differences:
+
+- finds the longest match on the `user-agent` directives i.e. the user-agent
+  `robotxt` matches the `user-agent: robot` directive.
+- fixes patterns with both wildcards i.e. the path `/shark/fish` does not match
+  the pattern `/fish*$` anymore.
