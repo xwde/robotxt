@@ -1,6 +1,6 @@
 use std::time::Duration;
 
-use crate::parse::Rule;
+use crate::internal::Rule;
 
 /// The `Rules` struct provides a convenient and efficient storage
 /// option for the data associated with certain user-agent group

@@ -1,27 +1,46 @@
 #![forbid(unsafe_code)]
 
-//!
+//! The implementation of the robots.txt protocol (or URL exclusion protocol)
+//! with the support of `crawl-delay`, `sitemap`, `host` and universal `*`
+//! match extensions (according to the RFC specification).
 //!
 //! ## Examples
 //!
-//! - Parse the part of the `robots.txt` file related to
-//! the specific user-agent.
+//! - Parse the set of directives of the provided `robots.txt`
+//! file related to the specific user-agent.
 //!
 //! ```rust
 //! use robotxt::Robots;
-//! // let r = Robots::from_directives(vec![], "*");
+//!
+//! let txt = r#"
+//!     User-Agent: foobot
+//!     Allow: /example/
+//!     Disallow: /example/nope.txt
+//! "#;
+//!
+//! let r = Robots::from_string(txt, "foobot");
+//! assert!(r.is_match("/example/yeah.txt"));
+//! assert!(!r.is_match("/example/nope.txt"));
 //! ```
 //!
-//! - Parse the whole `robots.txt` file.
+//! - Parse all directives of the provided `robots.txt` file.
 //!
 //! ```rust
 //! use robotxt::RobotsFile;
-//! // let r = RobotsFile::from_directives(vec![]);
-//! // r.
+//!
+//! let txt = r#"
+//!     User-Agent: foobot
+//!     Allow: /example/
+//!     Disallow: /example/nope.txt
+//! "#;
+//!
+//! let r = RobotsFile::from_string(txt);
+//! assert!(r.is_match("/example/yeah.txt", "foobot"));
+//! assert!(!r.is_match("/example/nope.txt", "foobot"));
 //! ```
 
 mod build;
+mod internal;
 mod parse;
-mod state;
 
-pub use state::*;
+pub use parse::*;

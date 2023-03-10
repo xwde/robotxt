@@ -1,11 +1,10 @@
-mod parser;
-pub use parser::*;
+mod common;
+use common::*;
 
-mod directive;
-pub use directive::*;
+mod single;
+pub use single::*;
 
-mod rule;
-pub use rule::*;
+mod multi;
+pub use multi::*;
 
-mod rules;
-pub use rules::*;
+const DEFAULT: &str = "*";

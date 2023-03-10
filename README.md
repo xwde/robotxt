@@ -30,11 +30,6 @@ and universal `*` match extensions (according to the RFC specification).
 ```rust
 ```
 
-- Build the new file from the provided directives.
-
-```rust
-```
-
 #### Links
 
 - [Request for Comments: 9309](https://www.rfc-editor.org/rfc/rfc9309.txt) on

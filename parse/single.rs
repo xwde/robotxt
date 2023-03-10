@@ -1,10 +1,11 @@
+use std::cmp::min;
 use std::io::{BufReader, Error as IoError, Read};
 use std::time::Duration;
 
 use url::Url;
 
-use crate::parse::{into_directives, Directive, Rules, BYTES_LIMIT};
-use crate::state::{try_delay, try_rule, try_sitemaps, DEFAULT};
+use crate::internal::{into_directives, Directive, Rules, BYTES_LIMIT};
+use crate::parse::{try_delay, try_rule, try_sitemaps, DEFAULT};
 
 /// The `Robots` struct represents the set of directives of the
 /// provided `robots.txt` file related to the specific user-agent.
@@ -27,11 +28,8 @@ impl Robots {
 
         // Filters out non-acceptable uas.
         let ua = ua.trim().to_lowercase();
-        let uas = uas.map(|ua2| (ua2.trim().to_lowercase(), ua2));
-        let uas = uas.filter_map(|ua2| match ua.starts_with(ua2.0.as_str()) {
-            true => Some(ua2.1),
-            false => None,
-        });
+        let uas = uas.map(|ua2| ua2.trim().to_lowercase());
+        let uas = uas.filter(|ua2| ua.starts_with(ua2.as_str()));
 
         // Finds the longest ua in the acceptable pool.
         let uas = uas.max_by(|lhs, rhs| lhs.len().cmp(&rhs.len()));
@@ -44,8 +42,8 @@ impl Robots {
 
     /// Creates a new `Robots` from the directives.
     fn from_directives(directives: &[Directive], ua: &str) -> Self {
-        let (ua, mut captures) = Self::find_agent(directives, ua);
-        let mut in_group = false;
+        let (ua, mut captures_rules) = Self::find_agent(directives, ua);
+        let mut captures_group = false;
 
         let mut rules = Vec::new();
         let mut delay = None;
@@ -54,11 +52,16 @@ impl Robots {
         for directive in directives {
             match directive {
                 Directive::UserAgent(u) => {
-                    if !in_group || !captures {
-                        captures = *u == ua.as_bytes()
+                    let u = String::from_utf8(u.to_vec()).ok();
+                    let u = u.map(|u| u.trim().to_lowercase());
+
+                    if let Some(u) = u {
+                        if !captures_group || !captures_rules {
+                            captures_rules = u.eq(&ua);
+                        }
                     }
 
-                    in_group = true;
+                    captures_group = true;
                     continue;
                 }
 
@@ -68,10 +71,10 @@ impl Robots {
                 },
 
                 Directive::Unknown(_) => continue,
-                _ => in_group = false,
+                _ => captures_group = false,
             }
 
-            if !captures {
+            if !captures_rules {
                 continue;
             }
 
@@ -87,7 +90,7 @@ impl Robots {
                 },
 
                 Directive::CrawlDelay(u) => match try_delay(u) {
-                    Some(u) => delay = Some(u), // TODO min
+                    Some(u) => delay = delay.map(|c| min(c, u)).or(Some(u)),
                     None => continue,
                 },
 
@@ -126,7 +129,7 @@ impl Robots {
 
 impl Robots {
     /// Returns the longest matching user-agent.
-    pub fn ua(&self) -> String {
+    pub fn user_agent(&self) -> String {
         self.ua.clone()
     }
 
@@ -151,20 +154,20 @@ mod tests {
     use super::*;
 
     static DIRECTIVES: &[Directive] = &[
-        Directive::UserAgent(b"googlebot-news"),
+        Directive::UserAgent(b"bot-robotxt"),
         Directive::Allow(b"/1"),
         Directive::Disallow(b"/"),
         Directive::UserAgent(b"*"),
         Directive::Allow(b"/2"),
         Directive::Disallow(b"/"),
-        Directive::UserAgent(b"googlebot"),
+        Directive::UserAgent(b"bot"),
         Directive::Allow(b"/3"),
         Directive::Disallow(b"/"),
     ];
 
     #[test]
     fn specific() {
-        let r = Robots::from_directives(DIRECTIVES, "googlebot-news");
+        let r = Robots::from_directives(DIRECTIVES, "bot-robotxt");
 
         // Matches:
         assert!(r.is_match("/1"));
@@ -176,7 +179,7 @@ mod tests {
 
     #[test]
     fn strict() {
-        let r = Robots::from_directives(DIRECTIVES, "googlebot");
+        let r = Robots::from_directives(DIRECTIVES, "bot");
 
         // Matches:
         assert!(r.is_match("/3"));
@@ -188,7 +191,7 @@ mod tests {
 
     #[test]
     fn missing() {
-        let r = Robots::from_directives(DIRECTIVES, "storebot-google");
+        let r = Robots::from_directives(DIRECTIVES, "super-bot");
 
         // Matches:
         assert!(r.is_match("/2"));
@@ -200,7 +203,7 @@ mod tests {
 
     #[test]
     fn partial() {
-        let r = Robots::from_directives(DIRECTIVES, "googlebot-images");
+        let r = Robots::from_directives(DIRECTIVES, "bot-super");
 
         // Matches:
         assert!(r.is_match("/3"));

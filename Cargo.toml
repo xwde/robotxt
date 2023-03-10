@@ -8,8 +8,7 @@ edition = "2021"
 license = "MIT"
 readme = "./README.md"
 description = """
-The implementation of the robots.txt
-protocol with the extension support.
+The implementation of the robots.txt protocol.
 """
 
 authors = ["Oleh Martsokha <o.martsokha@gmail.com>"]
