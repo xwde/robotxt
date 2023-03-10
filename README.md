@@ -58,3 +58,4 @@ following differences:
   `robotxt` matches the `user-agent: robot` directive.
 - fixes patterns with both wildcards i.e. the path `/shark/fish` does not match
   the pattern `/fish*$` anymore.
+- sorts patterns by `.len()` and `.is_allowed()` to provide better performance.
