@@ -24,8 +24,6 @@
 //! ```
 //!
 
-mod internal;
-
 mod build;
 pub use build::*;
 

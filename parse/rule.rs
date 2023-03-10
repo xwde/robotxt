@@ -74,6 +74,19 @@ impl Wildcard {
     }
 }
 
+/// Returns the prefixed & percent-encoded path.
+pub fn normalize_path(path: &str) -> String {
+    // TODO replace once_cell with std::sync::OnceLock once stable
+    static FRAGMENT: OnceCell<AsciiSet> = OnceCell::new();
+    let fragment = FRAGMENT.get_or_init(|| CONTROLS.add(b' ').add(b'"').add(b'<').add(b'>'));
+    let path = utf8_percent_encode(path, fragment).to_string();
+
+    match path.starts_with('/') {
+        false => '/'.to_string() + path.as_str(),
+        true => path,
+    }
+}
+
 /// The `Rule` struct provides a convenient and efficient way to process
 /// and to match robots.txt provided patterns with relative paths.
 #[derive(Debug, Clone)]
@@ -86,7 +99,7 @@ pub struct Rule {
 impl Rule {
     /// Creates a new `Rule` with the specified pattern and permission.
     pub fn new(pattern: &str, allow: bool) -> Result<Self, WildcardError> {
-        let pattern = Self::normalize(pattern);
+        let pattern = normalize_path(pattern);
         let wildcard = Wildcard::new(pattern.as_str())?;
 
         Ok(Self {
@@ -97,30 +110,17 @@ impl Rule {
     }
 
     /// Returns true if the path matches the pattern.
+    /// NOTE: expects normalized path.
     pub fn is_match(&self, path: &str) -> bool {
-        let path = Self::normalize(path);
         match &self.wildcard {
             None => path.starts_with(self.pattern.as_str()),
-            Some(wildcard) => wildcard.is_match(path.as_str()),
+            Some(wildcard) => wildcard.is_match(path),
         }
     }
 
     /// Returns true if allowed.
     pub fn is_allowed(&self) -> bool {
         self.allow
-    }
-
-    /// Returns the prefixed & percent-encoded path.
-    fn normalize(path: &str) -> String {
-        // TODO replace once_cell with std::sync::OnceLock once stable
-        static FRAGMENT: OnceCell<AsciiSet> = OnceCell::new();
-        let fragment = FRAGMENT.get_or_init(|| CONTROLS.add(b' ').add(b'"').add(b'<').add(b'>'));
-        let path = utf8_percent_encode(path, fragment).to_string();
-
-        match path.starts_with('/') {
-            false => '/'.to_string() + path.as_str(),
-            true => path,
-        }
     }
 }
 

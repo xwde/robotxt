@@ -10,7 +10,7 @@ use nom::multi::many_till;
 use nom::sequence::preceded;
 use nom::{Err as NomErr, IResult as NomResult};
 
-use crate::internal::Directive;
+use crate::parse::Directive;
 
 const CARRIAGE: u8 = b'\r';
 const NEWLINE: u8 = b'\n';

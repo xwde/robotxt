@@ -4,7 +4,7 @@ use std::time::Duration;
 
 use url::Url;
 
-use crate::internal::{into_directives, Directive, Rule, Rules, BYTES_LIMIT};
+use crate::parse::{into_directives, Directive, Rule, Rules, BYTES_LIMIT};
 
 ///
 fn try_sitemaps(u: &[u8]) -> Option<Url> {

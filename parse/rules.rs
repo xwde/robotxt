@@ -1,6 +1,6 @@
 use std::time::Duration;
 
-use crate::internal::Rule;
+use crate::parse::{normalize_path, Rule};
 
 /// The `Rules` struct provides a convenient and efficient storage
 /// option for the data associated with certain user-agent group
@@ -24,8 +24,14 @@ impl Rules {
 
     /// Returns true if the path is allowed for this set of rules.
     pub fn is_match(&self, path: &str) -> bool {
+        let path = normalize_path(path);
+
+        if path.eq("/robots.txt") {
+            return true;
+        }
+
         for rule in &self.rules {
-            if rule.is_match(path) {
+            if rule.is_match(path.as_str()) {
                 return rule.is_allowed();
             }
         }
