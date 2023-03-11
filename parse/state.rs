@@ -211,13 +211,13 @@ impl Robots {
 impl Robots {
     /// Returns the longest matching user-agent.
     pub fn user_agent(&self) -> &str {
-        self.user_agent.as_str()
+        &self.user_agent
     }
 
     /// Returns true if the path is allowed for the user-agent.
     /// NOTE: Expects relative path.
     pub fn is_match(&self, path: &str) -> bool {
-        match self.is_always() {
+        match self.always_rule {
             Some(always) => always,
             None => self.rules.is_match(path),
         }
@@ -225,10 +225,7 @@ impl Robots {
 
     /// Returns `Some(_)` if the site is fully allowed or disallowed.
     pub fn is_always(&self) -> Option<bool> {
-        match self.always_rule {
-            Some(always) => Some(always),
-            None => self.rules.is_always(),
-        }
+        self.always_rule
     }
 
     /// Returns the crawl-delay of the user-agent.
@@ -237,8 +234,8 @@ impl Robots {
     }
 
     /// Returns all sitemaps.
-    pub fn sitemaps(&self) -> &[Url] {
-        self.sitemaps.as_slice()
+    pub fn sitemaps(&self) -> &Vec<Url> {
+        &self.sitemaps
     }
 }
 
