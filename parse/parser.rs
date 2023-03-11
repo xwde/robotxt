@@ -1,5 +1,3 @@
-use std::cmp::min;
-
 use bstr::ByteSlice;
 use nom::branch::{alt, Alt};
 use nom::bytes::complete::{tag, tag_no_case, take_while};
@@ -157,15 +155,11 @@ fn unknown(input: &[u8]) -> NomResult<&[u8], Directive> {
 }
 
 /// Google currently enforces a `robots.txt` file size limit of 500 kibibytes (KiB).
-/// See [How Google interprets the robots.txt specification](https://t.ly/uWvd).
+/// See [How Google interprets Robots.txt](https://t.ly/uWvd).
 pub const BYTES_LIMIT: usize = 512_000;
 
 /// Parses the input slice into the list of directives.
 fn parse(input: &[u8]) -> NomResult<&[u8], Vec<Directive>> {
-    // Limits the input to 500 kibibytes.
-    let limit = min(input.len(), BYTES_LIMIT);
-    let input = &input[0..limit];
-
     // Removes the byte order mark (BOM).
     let (input, _) = opt(tag(b"\xef"))(input)?;
     let (input, _) = opt(tag(b"\xbb"))(input)?;

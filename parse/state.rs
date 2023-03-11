@@ -1,3 +1,4 @@
+use nom::AsBytes;
 use std::cmp::min;
 use std::io::{BufReader, Error as IoError, Read};
 use std::time::Duration;
@@ -35,8 +36,8 @@ fn try_delay(u: &[u8]) -> Option<Duration> {
     Some(u)
 }
 
-/// The `AccessResult` enum represents the possible result
-/// of the `robots.txt` retrieval attempt.
+/// The `AccessResult` enum represents the result of the
+/// `robots.txt` retrieval attempt. See [Robots::from_access].
 #[derive(Debug)]
 pub enum AccessResult<'a> {
     /// The `robots.txt` file was provided by the server and
@@ -177,6 +178,19 @@ impl Robots {
 
     /// Creates a new `Robots` from the byte slice.
     pub fn from_slice(robots: &[u8], ua: &str) -> Self {
+        // Limits the input to 500 kibibytes.
+        let limit = min(robots.len(), BYTES_LIMIT);
+        let robots = &robots[0..limit];
+
+        // Replaces '\x00' with '\n'.
+        let robots = robots.iter().map(|u| match u {
+            b'\x00' => b'\n',
+            v => *v,
+        });
+
+        let robots: Vec<_> = robots.collect();
+        let robots = robots.as_bytes();
+
         let directives = into_directives(robots);
         Self::from_directives(directives.as_slice(), ua)
     }
