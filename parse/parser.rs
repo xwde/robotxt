@@ -270,7 +270,7 @@ mod precedence {
 
     #[test]
     fn specific() {
-        let (_, r, _) = parse_directives(DIRECTIVES, "bot-robotxt");
+        let r = Robots::from_directives(DIRECTIVES, "bot-robotxt");
 
         // Matches:
         assert!(r.is_allowed("/1"));
@@ -282,7 +282,7 @@ mod precedence {
 
     #[test]
     fn strict() {
-        let (_, r, _) = parse_directives(DIRECTIVES, "bot");
+        let r = Robots::from_directives(DIRECTIVES, "bot");
 
         // Matches:
         assert!(r.is_allowed("/3"));
@@ -294,7 +294,7 @@ mod precedence {
 
     #[test]
     fn missing() {
-        let (_, r, _) = parse_directives(DIRECTIVES, "super-bot");
+        let r = Robots::from_directives(DIRECTIVES, "super-bot");
 
         // Matches:
         assert!(r.is_allowed("/2"));
@@ -306,7 +306,7 @@ mod precedence {
 
     #[test]
     fn partial() {
-        let (_, r, _) = parse_directives(DIRECTIVES, "bot-super");
+        let r = Robots::from_directives(DIRECTIVES, "bot-super");
 
         // Matches:
         assert!(r.is_allowed("/3"));
