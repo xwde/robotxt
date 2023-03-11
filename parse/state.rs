@@ -223,15 +223,19 @@ impl Robots {
     /// Returns true if the path is allowed for the longest matching user-agent.
     /// NOTE: Expects relative path.
     pub fn is_match(&self, path: &str) -> bool {
-        match self.always_rule {
+        match self.is_always() {
             Some(always) => always,
             None => self.rules.is_match(path),
         }
     }
 
-    /// Returns if the specified `always_rule`.
+    /// Returns `Some(_)` if the site is fully allowed or fully disallowed.
     pub fn is_always(&self) -> Option<bool> {
-        self.always_rule
+        match self.always_rule {
+            Some(always) => Some(always),
+            None if self.rules.is_empty() => Some(true),
+            None => None,
+        }
     }
 
     /// Returns the crawl-delay of the longest matching user-agent.

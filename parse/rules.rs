@@ -43,6 +43,11 @@ impl Rules {
     pub fn delay(&self) -> Option<Duration> {
         self.delay
     }
+
+    /// Returns true if does not story any rules.
+    pub fn is_empty(&self) -> bool {
+        self.rules.is_empty()
+    }
 }
 
 #[cfg(test)]
