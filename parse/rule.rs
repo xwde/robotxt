@@ -70,7 +70,7 @@ impl Wildcard {
     }
 
     // Returns true if path matches pattern.
-    /// TODO clean up the mess.
+    /// TODO clean up the mess
     fn match_universal(pattern: &str, path: &str) -> bool {
         let splits = pattern.split('*');
 

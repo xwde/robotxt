@@ -37,6 +37,8 @@ fn main() {
 
 - build the new `robots.txt` file from provided directives:
 
+> **Note** : the builder is not yet implemented.
+
 ```rust
 ```
 
