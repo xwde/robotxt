@@ -11,9 +11,9 @@
 [docs-badge]: https://img.shields.io/docsrs/robotxt?logo=Docs.rs&style=for-the-badge
 [docs-url]: http://docs.rs/robotxt
 
-The implementation of the robots.txt protocol (or URL exclusion protocol) in
-Rust programming language with the support of `crawl-delay`, `sitemap` and
-universal `*` match extensions (according to the RFC specification).
+The implementation of the robots.txt (or URL exclusion) protocol in the Rust
+programming language with the support of `crawl-delay`, `sitemap` and universal
+`*` match extensions (according to the RFC specification).
 
 ### Examples
 

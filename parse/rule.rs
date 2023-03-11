@@ -69,7 +69,7 @@ impl Wildcard {
         Ok(Some(Self::Both(regex)))
     }
 
-    // Returns true if path matches pattern.
+    /// Returns true if the path matches the pattern.
     /// TODO clean up the mess
     fn match_universal(pattern: &str, path: &str) -> bool {
         let splits = pattern.split('*');
