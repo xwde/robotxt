@@ -67,27 +67,6 @@ pub struct Robots {
 }
 
 impl Robots {
-    /// Creates a new `Robots` from the always rule.
-    pub fn from_always(always: bool, user_agent: &str) -> Self {
-        let user_agent = user_agent.trim().to_lowercase();
-        Self {
-            user_agent,
-            always_rule: Some(always),
-            rules: Rules::new(vec![], None),
-            sitemaps: vec![],
-        }
-    }
-
-    /// Creates a new `Robots` from the `AccessResult`.
-    pub fn from_access(access: AccessResult, user_agent: &str) -> Self {
-        use AccessResult::*;
-        match access {
-            Successful(txt) => Self::from_slice(txt, user_agent),
-            Redirect | Unavailable => Self::from_always(true, user_agent),
-            Unreachable => Self::from_always(false, user_agent),
-        }
-    }
-
     /// Finds the longest matching user-agent and
     /// if the parser should check non-assigned rules.
     fn find_agent(directives: &[Directive], user_agent: &str) -> (String, bool) {
@@ -205,6 +184,27 @@ impl Robots {
 
         let robots = buffer.as_slice();
         Ok(Self::from_slice(robots, user_agent))
+    }
+
+    /// Creates a new `Robots` from the `AccessResult`.
+    pub fn from_access(access: AccessResult, user_agent: &str) -> Self {
+        use AccessResult::*;
+        match access {
+            Successful(txt) => Self::from_slice(txt, user_agent),
+            Redirect | Unavailable => Self::from_always(true, user_agent),
+            Unreachable => Self::from_always(false, user_agent),
+        }
+    }
+
+    /// Creates a new `Robots` from the always rule.
+    pub fn from_always(always: bool, user_agent: &str) -> Self {
+        let user_agent = user_agent.trim().to_lowercase();
+        Self {
+            user_agent,
+            always_rule: Some(always),
+            rules: Rules::new(vec![], None),
+            sitemaps: vec![],
+        }
     }
 }
 
