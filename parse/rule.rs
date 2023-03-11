@@ -2,7 +2,6 @@ use std::cmp::Ordering;
 use std::error::Error;
 use std::fmt::{Display, Formatter, Result as FmtResult};
 
-use bstr::ByteSlice;
 use once_cell::sync::OnceCell;
 use percent_encoding::{utf8_percent_encode, AsciiSet, CONTROLS};
 use regex::{escape, Error as RegexError, Regex, RegexBuilder};
