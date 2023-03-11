@@ -210,8 +210,8 @@ impl Robots {
 
 impl Robots {
     /// Returns the longest matching user-agent.
-    pub fn user_agent(&self) -> String {
-        self.user_agent.clone()
+    pub fn user_agent(&self) -> &str {
+        self.user_agent.as_str()
     }
 
     /// Returns true if the path is allowed for the user-agent.
@@ -237,8 +237,8 @@ impl Robots {
     }
 
     /// Returns all sitemaps.
-    pub fn sitemaps(&self) -> Vec<Url> {
-        self.sitemaps.clone()
+    pub fn sitemaps(&self) -> &[Url] {
+        self.sitemaps.as_slice()
     }
 }
 
