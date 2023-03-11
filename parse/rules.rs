@@ -39,6 +39,19 @@ impl Rules {
         true
     }
 
+    /// Returns `Some(_)` if the site is fully allowed or disallowed.
+    pub fn is_always(&self) -> Option<bool> {
+        if self.rules.is_empty() {
+            return Some(true);
+        }
+
+        let disallows = self.rules.iter().filter(|r| !r.is_allowed());
+        match disallows.count() > 0 {
+            true => None,
+            false => Some(true),
+        }
+    }
+
     /// Returns the specified crawl-delay.
     pub fn delay(&self) -> Option<Duration> {
         self.delay

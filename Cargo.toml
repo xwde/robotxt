@@ -17,9 +17,6 @@ homepage = "https://github.com/xwde/robotxt"
 categories = ["parser-implementations", "parsing", "web-programming"]
 keywords = ["robots", "crawler", "parser"]
 
-[package.metadata.docs.rs]
-all-features = true
-
 [lib]
 path = "./lib.rs"
 

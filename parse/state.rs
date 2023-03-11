@@ -35,8 +35,8 @@ fn try_delay(u: &[u8]) -> Option<Duration> {
     Some(u)
 }
 
-/// The `AccessResult` enum represents the possible result
-/// of the `robots.txt` retrieval attempt.
+/// The `AccessResult` enum represents the result of the
+/// `robots.txt` retrieval attempt. See [Robots::from_access].
 #[derive(Debug)]
 pub enum AccessResult<'a> {
     /// The `robots.txt` file was provided by the server and
@@ -67,30 +67,9 @@ pub struct Robots {
 }
 
 impl Robots {
-    /// Creates a new `Robots` from the always rule.
-    pub fn from_always(always: bool, ua: &str) -> Self {
-        let ua = ua.trim().to_lowercase();
-        Self {
-            user_agent: ua,
-            always_rule: Some(always),
-            rules: Rules::new(vec![], None),
-            sitemaps: vec![],
-        }
-    }
-
-    /// Creates a new `Robots` from the `AccessResult`.
-    pub fn from_access(access: AccessResult, ua: &str) -> Self {
-        use AccessResult::*;
-        match access {
-            Successful(r) => Self::from_slice(r, ua),
-            Redirect | Unavailable => Self::from_always(true, ua),
-            Unreachable => Self::from_always(false, ua),
-        }
-    }
-
     /// Finds the longest matching user-agent and
     /// if the parser should check non-assigned rules.
-    fn find_agent(directives: &[Directive], ua: &str) -> (String, bool) {
+    fn find_agent(directives: &[Directive], user_agent: &str) -> (String, bool) {
         // Collects all uas.
         let uas = directives.iter().filter_map(|ua2| match ua2 {
             Directive::UserAgent(ua2) => String::from_utf8(ua2.to_vec()).ok(),
@@ -98,7 +77,7 @@ impl Robots {
         });
 
         // Filters out non-acceptable uas.
-        let ua = ua.trim().to_lowercase();
+        let ua = user_agent.trim().to_lowercase();
         let uas = uas.map(|ua2| ua2.trim().to_lowercase());
         let uas = uas.filter(|ua2| ua.starts_with(ua2.as_str()));
 
@@ -167,28 +146,36 @@ impl Robots {
             }
         }
 
+        let rules = Rules::new(rules, delay);
         Self {
             user_agent: ua,
-            always_rule: None,
-            rules: Rules::new(rules, delay),
+            always_rule: rules.is_always(),
+            rules,
             sitemaps: maps,
         }
     }
 
     /// Creates a new `Robots` from the byte slice.
-    pub fn from_slice(robots: &[u8], ua: &str) -> Self {
-        let directives = into_directives(robots);
-        Self::from_directives(directives.as_slice(), ua)
-    }
+    pub fn from_slice(robots: &[u8], user_agent: &str) -> Self {
+        // Limits the input to 500 kibibytes.
+        let limit = min(robots.len(), BYTES_LIMIT);
+        let robots = &robots[0..limit];
 
-    /// Creates a new `Robots` from the string slice.
-    pub fn from_string(robots: &str, ua: &str) -> Self {
-        let robots = robots.as_bytes();
-        Self::from_slice(robots, ua)
+        // Replaces '\x00' with '\n'.
+        let robots = robots.iter().map(|u| match u {
+            b'\x00' => b'\n',
+            v => *v,
+        });
+
+        let robots: Vec<_> = robots.collect();
+        let robots = robots.as_slice();
+
+        let directives = into_directives(robots);
+        Self::from_directives(directives.as_slice(), user_agent)
     }
 
     /// Creates a new `Robots` from the generic reader.
-    pub fn from_reader<R: Read>(reader: R, ua: &str) -> Result<Self, IoError> {
+    pub fn from_reader<R: Read>(reader: R, user_agent: &str) -> Result<Self, IoError> {
         let reader = reader.take(BYTES_LIMIT as u64);
         let mut reader = BufReader::new(reader);
 
@@ -196,17 +183,38 @@ impl Robots {
         reader.read_to_end(&mut buffer)?;
 
         let robots = buffer.as_slice();
-        Ok(Self::from_slice(robots, ua))
+        Ok(Self::from_slice(robots, user_agent))
+    }
+
+    /// Creates a new `Robots` from the `AccessResult`.
+    pub fn from_access(access: AccessResult, user_agent: &str) -> Self {
+        use AccessResult::*;
+        match access {
+            Successful(txt) => Self::from_slice(txt, user_agent),
+            Redirect | Unavailable => Self::from_always(true, user_agent),
+            Unreachable => Self::from_always(false, user_agent),
+        }
+    }
+
+    /// Creates a new `Robots` from the always rule.
+    pub fn from_always(always: bool, user_agent: &str) -> Self {
+        let user_agent = user_agent.trim().to_lowercase();
+        Self {
+            user_agent,
+            always_rule: Some(always),
+            rules: Rules::new(vec![], None),
+            sitemaps: vec![],
+        }
     }
 }
 
 impl Robots {
     /// Returns the longest matching user-agent.
-    pub fn user_agent(&self) -> String {
-        self.user_agent.clone()
+    pub fn user_agent(&self) -> &str {
+        &self.user_agent
     }
 
-    /// Returns true if the path is allowed for the longest matching user-agent.
+    /// Returns true if the path is allowed for the user-agent.
     /// NOTE: Expects relative path.
     pub fn is_match(&self, path: &str) -> bool {
         match self.always_rule {
@@ -215,19 +223,19 @@ impl Robots {
         }
     }
 
-    /// Returns if the specified `always_rule`.
+    /// Returns `Some(_)` if the site is fully allowed or disallowed.
     pub fn is_always(&self) -> Option<bool> {
         self.always_rule
     }
 
-    /// Returns the crawl-delay of the longest matching user-agent.
+    /// Returns the crawl-delay of the user-agent.
     pub fn delay(&self) -> Option<Duration> {
         self.rules.delay()
     }
 
     /// Returns all sitemaps.
-    pub fn sitemaps(&self) -> Vec<Url> {
-        self.sitemaps.clone()
+    pub fn sitemaps(&self) -> &Vec<Url> {
+        &self.sitemaps
     }
 }
 

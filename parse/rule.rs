@@ -4,7 +4,7 @@ use std::fmt::{Display, Formatter, Result as FmtResult};
 
 use once_cell::sync::OnceCell;
 use percent_encoding::{utf8_percent_encode, AsciiSet, CONTROLS};
-use regex::{Error as RegexError, Regex, RegexBuilder};
+use regex::{escape, Error as RegexError, Regex, RegexBuilder};
 
 /// An error type indicating that a `Wildcard` could not be parsed correctly.
 #[derive(Debug, Clone)]
@@ -34,7 +34,7 @@ impl Error for WildcardError {}
 #[derive(Debug, Clone)]
 pub enum Wildcard {
     // Ending(String),
-    // Universal(String),
+    Universal(String),
     Both(Regex),
 }
 
@@ -49,13 +49,18 @@ impl Wildcard {
         // TODO only end of pattern wildcard
         // if pattern.contains('$') && !pattern.contains('*') { }
 
-        // TODO only universal wildcard
-        // if pattern.contains('*') && !pattern.contains('$') { }
+        static STAR_KILLER: OnceCell<Regex> = OnceCell::new();
+        let star_killer = STAR_KILLER.get_or_init(|| Regex::new(r"\*+").unwrap());
+        let pattern = star_killer.replace_all(pattern, "*");
 
-        let regex = '^'.to_string()
-            + &regex::escape(pattern)
-                .replace("\\*", ".*")
-                .replace("\\$", "$");
+        // TODO optimize wildcard checks
+        if pattern.contains('*') && !pattern.contains('$') {
+            return Ok(Some(Self::Universal(pattern.to_string())));
+        }
+
+        let regex = escape(&pattern).replace("\\*", ".*").replace("\\$", "$");
+        let regex = '^'.to_string() + &regex;
+
         let regex = RegexBuilder::new(&regex)
             .dfa_size_limit(42 * (1 << 10))
             .size_limit(42 * (1 << 10))
@@ -64,11 +69,40 @@ impl Wildcard {
         Ok(Some(Self::Both(regex)))
     }
 
+    // Returns true if path matches pattern.
+    /// TODO clean up the mess
+    fn match_universal(pattern: &str, path: &str) -> bool {
+        let splits = pattern.split('*');
+
+        let mut pos = 0;
+        for (idx, split) in splits.enumerate() {
+            // The first split is special as it doesn't start with a '*'.
+            // i.e. pattern '/a*c' : path '/abc' should match '/a'.
+            if idx == 0 && !path.is_empty() {
+                if !path.starts_with(split) {
+                    return false;
+                }
+
+                pos += split.len();
+                continue;
+            }
+
+            match path[pos..].find(split) {
+                Some(idx) => {
+                    pos += idx + split.len();
+                }
+                None => return false,
+            }
+        }
+
+        true
+    }
+
     /// Returns true if the path matches the wildcard pattern.
     pub fn is_match(&self, path: &str) -> bool {
         match &self {
             // Self::Ending(_) => todo!(),
-            // Self::Universal(_) => todo!(),
+            Self::Universal(p) => Self::match_universal(p.as_str(), path),
             Self::Both(r) => r.is_match(path),
         }
     }
