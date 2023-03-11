@@ -10,8 +10,8 @@ use nom::{Err as NomErr, IResult as NomResult};
 
 use std::fmt::{Debug, Formatter, Result as FmtResult};
 
-// TODO attach position
 /// The `Directive` enum represents every supported `robots.txt` directive.
+// TODO: Attach position.
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub enum Directive<'a> {
     UserAgent(&'a [u8]),
@@ -177,7 +177,7 @@ pub fn into_directives(input: &[u8]) -> Vec<Directive> {
     // Discards the possibility of any error as `unknown` consumes anything.
     match parse(input) {
         Ok((_, directives)) => directives,
-        Err(_) => unreachable!(),
+        Err(_) => unreachable!(), // TODO: Verify soundness.
     }
 }
 
