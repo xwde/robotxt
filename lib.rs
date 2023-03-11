@@ -27,8 +27,5 @@
 mod build;
 pub use build::*;
 
-mod fetch;
-pub use fetch::*;
-
 mod parse;
 pub use parse::*;

@@ -7,6 +7,13 @@ use url::Url;
 use crate::parse::{into_directives, Directive, Rule, Rules, BYTES_LIMIT};
 
 ///
+fn try_agent(u: &[u8]) -> Option<String> {
+    let u = String::from_utf8(u.to_vec()).ok()?;
+    let u = u.trim().to_lowercase();
+    Some(u)
+}
+
+///
 fn try_sitemaps(u: &[u8]) -> Option<Url> {
     let u = String::from_utf8(u.to_vec()).ok()?;
     let u = Url::parse(u.as_str()).ok()?;
@@ -26,6 +33,25 @@ fn try_delay(u: &[u8]) -> Option<Duration> {
     let u = u.parse::<f32>().ok()?;
     let u = Duration::try_from_secs_f32(u).ok()?;
     Some(u)
+}
+
+/// The `AccessResult` enum represents the possible result
+/// of the `robots.txt` retrieval attempt.
+#[derive(Debug)]
+pub enum AccessResult<'a> {
+    /// The `robots.txt` file was provided by the server and
+    /// ready to be parsed.
+    Successful(&'a [u8]),
+    /// The `robots.txt` file has not been reached after
+    /// at least five redirect hops. Treated as `Unavailable`.
+    Redirect,
+    /// The valid `robots.txt` file does not exist.
+    /// The `Robots` assumes that there are no restrictions.
+    /// The site is fully allowed.
+    Unavailable,
+    /// The `robots.txt` file could not be served.
+    /// The site is fully disallowed.
+    Unreachable,
 }
 
 const DEFAULT: &str = "*";
@@ -49,6 +75,16 @@ impl Robots {
             always_rule: Some(always),
             rules: Rules::new(vec![], None),
             sitemaps: vec![],
+        }
+    }
+
+    /// Creates a new `Robots` from the `AccessResult`.
+    pub fn from_access(access: AccessResult, ua: &str) -> Self {
+        use AccessResult::*;
+        match access {
+            Successful(r) => Self::from_slice(r, ua),
+            Redirect | Unavailable => Self::from_always(true, ua),
+            Unreachable => Self::from_always(false, ua),
         }
     }
 
@@ -87,10 +123,7 @@ impl Robots {
         for directive in directives {
             match directive {
                 Directive::UserAgent(u) => {
-                    let u = String::from_utf8(u.to_vec()).ok();
-                    let u = u.map(|u| u.trim().to_lowercase());
-
-                    if let Some(u) = u {
+                    if let Some(u) = try_agent(u) {
                         if !captures_group || !captures_rules {
                             captures_rules = u.eq(&ua);
                         }
@@ -100,14 +133,13 @@ impl Robots {
                     continue;
                 }
 
-                Directive::Sitemap(u) => match try_sitemaps(u) {
-                    Some(u) => {
+                Directive::Sitemap(u) => {
+                    if let Some(u) = try_sitemaps(u) {
                         maps.push(u);
-                        continue;
                     }
 
-                    None => continue,
-                },
+                    continue;
+                }
 
                 Directive::Unknown(_) => continue,
                 _ => captures_group = false,
@@ -175,11 +207,17 @@ impl Robots {
     }
 
     /// Returns true if the path is allowed for the longest matching user-agent.
+    /// NOTE: Expects relative path.
     pub fn is_match(&self, path: &str) -> bool {
         match self.always_rule {
             Some(always) => always,
             None => self.rules.is_match(path),
         }
+    }
+
+    /// Returns if the specified `always_rule`.
+    pub fn is_always(&self) -> Option<bool> {
+        self.always_rule
     }
 
     /// Returns the crawl-delay of the longest matching user-agent.

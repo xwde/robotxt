@@ -6,4 +6,6 @@ mod state;
 use parser::*;
 use rule::*;
 use rules::*;
-pub use state::*;
+
+pub use parser::BYTES_LIMIT;
+pub use state::{AccessResult, Robots};
