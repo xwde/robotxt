@@ -54,6 +54,7 @@ impl Wildcard {
         let star_killer = STAR_KILLER.get_or_init(|| Regex::new(r"\*+").unwrap());
         let pattern = star_killer.replace_all(pattern, "*");
 
+        // TODO optimize wildcard checks
         if pattern.contains('*') && !pattern.contains('$') {
             return Ok(Some(Self::Universal(pattern.to_string())));
         }
@@ -69,32 +70,27 @@ impl Wildcard {
         Ok(Some(Self::Both(regex)))
     }
 
-    /// Returns true if path matches pattern.
+    // Returns true if path matches pattern.
     /// TODO clean up the mess.
     fn match_universal(pattern: &str, path: &str) -> bool {
-        let pattern = pattern.as_bytes();
-        let path = path.as_bytes();
+        let splits = pattern.split('*');
 
-        // Breaks the pattern into the parts separated by "*".
-        let parts = pattern.split(|&b| b == b'*');
-
-        let mut start = 0;
-
-        for (idx, split) in parts.enumerate() {
-            if idx == 0 && !path.is_empty() && path[0] != b'*' {
-                // The first part is special if it doesn't start with a '*'
-                // This must match at the very start.
+        let mut pos = 0;
+        for (idx, split) in splits.enumerate() {
+            // The first split is special as it doesn't start with a '*'.
+            // i.e. pattern '/a*c' : path '/abc' should match '/a'.
+            if idx == 0 && !path.is_empty() {
                 if !path.starts_with(split) {
                     return false;
                 }
 
-                start += split.len();
+                pos += split.len();
                 continue;
             }
 
-            match path[start..].find(split) {
+            match path[pos..].find(split) {
                 Some(idx) => {
-                    start += idx + split.len();
+                    pos += idx + split.len();
                 }
                 None => return false,
             }
