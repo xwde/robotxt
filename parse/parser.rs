@@ -30,8 +30,8 @@ fn parse_rule(u: &[u8], allow: bool) -> Option<Rule> {
 ///
 fn parse_crawl_delay(u: &[u8]) -> Option<Duration> {
     let u = String::from_utf8(u.to_vec()).ok()?;
-    let u = u.parse::<f32>().ok()?;
-    let u = Duration::try_from_secs_f32(u).ok()?;
+    let u = u.parse::<f64>().ok()?;
+    let u = Duration::try_from_secs_f64(u).ok()?;
     Some(u)
 }
 
@@ -101,6 +101,7 @@ impl Robots {
         (uas, default)
     }
 
+    /// Creates a new `Robots` from the directives.
     fn from_directives(directives: &[Directive], user_agent: &str) -> Self {
         let (user_agent, mut captures_rules) = Self::find_agent(directives, user_agent);
         let mut captures_group = false;
@@ -205,7 +206,7 @@ impl Robots {
         }
     }
 
-    /// Creates a new `Robots` from the always rule.
+    /// Creates a new `Robots` from the global rule.
     pub fn from_always(always: bool, user_agent: &str) -> Self {
         Self {
             user_agent: user_agent.trim().to_lowercase(),
