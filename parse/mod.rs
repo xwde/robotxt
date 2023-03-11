@@ -1,14 +1,11 @@
 mod parser;
-use parser::*;
-
-mod directive;
-use directive::*;
-
 mod rule;
-use rule::*;
-
 mod rules;
+mod state;
+
+use parser::*;
+use rule::*;
 use rules::*;
 
-mod state;
-pub use state::*;
+pub use parser::BYTES_LIMIT;
+pub use state::{AccessResult, Robots};

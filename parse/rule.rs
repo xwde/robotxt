@@ -75,6 +75,7 @@ impl Wildcard {
 }
 
 /// Returns the prefixed & percent-encoded path.
+/// NOTE: Expects relative path.
 pub fn normalize_path(path: &str) -> String {
     // TODO replace once_cell with std::sync::OnceLock once stable
     static FRAGMENT: OnceCell<AsciiSet> = OnceCell::new();
@@ -109,8 +110,8 @@ impl Rule {
         })
     }
 
-    /// Returns true if the path matches the pattern.
-    /// NOTE: expects normalized path.
+    /// Returns true if the normalized relative path matches the pattern.
+    /// NOTE: Expects normalized relative path.
     pub fn is_match(&self, path: &str) -> bool {
         match &self.wildcard {
             None => path.starts_with(self.pattern.as_str()),

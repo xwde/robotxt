@@ -10,7 +10,32 @@ use nom::multi::many_till;
 use nom::sequence::preceded;
 use nom::{Err as NomErr, IResult as NomResult};
 
-use crate::parse::Directive;
+use std::fmt::{Debug, Formatter, Result as FmtResult};
+
+// TODO attach position
+/// The `Directive` enum represents every supported `robots.txt` directive.
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub enum Directive<'a> {
+    UserAgent(&'a [u8]),
+    Allow(&'a [u8]),
+    Disallow(&'a [u8]),
+    CrawlDelay(&'a [u8]),
+    Sitemap(&'a [u8]),
+    Unknown(&'a [u8]),
+}
+
+impl Debug for Directive<'_> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> FmtResult {
+        match &self {
+            Self::UserAgent(v) => f.debug_tuple("User-Agent").field(&v.as_bstr()).finish(),
+            Self::Allow(v) => f.debug_tuple("Allow").field(&v.as_bstr()).finish(),
+            Self::Disallow(v) => f.debug_tuple("Disallow").field(&v.as_bstr()).finish(),
+            Self::CrawlDelay(v) => f.debug_tuple("Crawl-Delay").field(&v.as_bstr()).finish(),
+            Self::Sitemap(v) => f.debug_tuple("Sitemap").field(&v.as_bstr()).finish(),
+            Self::Unknown(v) => f.debug_tuple("Unknown").field(&v.as_bstr()).finish(),
+        }
+    }
+}
 
 const CARRIAGE: u8 = b'\r';
 const NEWLINE: u8 = b'\n';
@@ -44,12 +69,12 @@ where
     // Tries to match to the spelling list.
     let (input, _) = preceded(space0, alt(spellings))(input)?;
     // Tries to match the separator (colon or spaces).
-    let (input, _) = alt((preceded(space0, tag(":")), space1))(input)?;
+    let (input, _) = alt((preceded(space0, tag(b":")), space1))(input)?;
     // Tries to retrieve the value of the kv pair.
     let (input, line) = take_while(b_not_line_ending_or_comment)(input)?;
 
     // Skips the rest.
-    let (input, _) = opt(preceded(tag("#"), take_while(b_not_line_ending)))(input)?;
+    let (input, _) = opt(preceded(tag(b"#"), take_while(b_not_line_ending)))(input)?;
     let (input, _) = b_consume_newline(input)?;
 
     let line = line.trim();
@@ -131,8 +156,8 @@ fn unknown(input: &[u8]) -> NomResult<&[u8], Directive> {
     Ok((input, Directive::Unknown(unknown)))
 }
 
-/// Google currently enforces a robots.txt file size limit of 500 kibibytes (KiB).
-/// https://developers.google.com/search/docs/crawling-indexing/robots/robots_txt
+/// Google currently enforces a `robots.txt` file size limit of 500 kibibytes (KiB).
+/// See [How Google interprets the robots.txt specification](https://t.ly/uWvd).
 pub const BYTES_LIMIT: usize = 512_000;
 
 /// Parses the input slice into the list of directives.
@@ -163,7 +188,29 @@ pub fn into_directives(input: &[u8]) -> Vec<Directive> {
 }
 
 #[cfg(test)]
-mod tests {
+mod parsing {
+    use super::*;
+
     #[test]
-    fn foo() {}
+    fn single() {
+        let r = b"user-agent: robotxt";
+        let r = into_directives(r);
+
+        let ua = b"robotxt";
+        let ua = Directive::UserAgent(ua);
+        assert_eq!(r, vec![ua]);
+    }
+
+    #[test]
+    fn empty() {
+        let r = b"
+            user-agent: robotxt\n
+            user-agent: robotxt";
+        let r = into_directives(r);
+
+        let ua = b"robotxt";
+        let ua = Directive::UserAgent(ua);
+        let em = Directive::Unknown(b"");
+        assert_eq!(r, vec![em, ua, em, ua]);
+    }
 }
