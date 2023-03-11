@@ -15,9 +15,9 @@
 //!     User-Agent: foobot
 //!     Allow: /example/
 //!     Disallow: /example/nope.txt
-//! "#;
+//! "#.as_bytes();
 //!
-//! let r = Robots::from_string(txt, "foobot");
+//! let r = Robots::from_slice(txt, "foobot");
 //! assert!(r.is_match("/example/yeah.txt"));
 //! assert!(!r.is_match("/example/nope.txt"));
 //! ```
