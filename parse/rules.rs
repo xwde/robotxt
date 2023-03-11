@@ -44,7 +44,7 @@ impl Rules {
         self.delay
     }
 
-    /// Returns true if does not story any rules.
+    /// Returns true if does not store any rules.
     pub fn is_empty(&self) -> bool {
         self.rules.is_empty()
     }

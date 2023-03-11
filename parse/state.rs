@@ -220,7 +220,7 @@ impl Robots {
         self.user_agent.clone()
     }
 
-    /// Returns true if the path is allowed for the longest matching user-agent.
+    /// Returns true if the path is allowed for the user-agent.
     /// NOTE: Expects relative path.
     pub fn is_match(&self, path: &str) -> bool {
         match self.is_always() {
@@ -229,7 +229,7 @@ impl Robots {
         }
     }
 
-    /// Returns `Some(_)` if the site is fully allowed or fully disallowed.
+    /// Returns `Some(_)` if the site is fully allowed or disallowed.
     pub fn is_always(&self) -> Option<bool> {
         match self.always_rule {
             Some(always) => Some(always),
@@ -238,7 +238,7 @@ impl Robots {
         }
     }
 
-    /// Returns the crawl-delay of the longest matching user-agent.
+    /// Returns the crawl-delay of the user-agent.
     pub fn delay(&self) -> Option<Duration> {
         self.rules.delay()
     }
