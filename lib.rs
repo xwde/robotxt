@@ -18,8 +18,8 @@
 //! "#.as_bytes();
 //!
 //! let r = Robots::from_slice(txt, "foobot");
-//! assert!(r.is_match("/example/yeah.txt"));
-//! assert!(!r.is_match("/example/nope.txt"));
+//! assert!(r.is_allowed("/example/yeah.txt"));
+//! assert!(!r.is_allowed("/example/nope.txt"));
 //! ```
 //!
 //! - build the new `robots.txt` file from provided directives:

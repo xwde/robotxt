@@ -46,14 +46,14 @@ impl Wildcard {
             return Ok(None);
         }
 
-        // TODO only end of pattern wildcard
+        // TODO: Only end of pattern wildcard.
         // if pattern.contains('$') && !pattern.contains('*') { }
 
         static STAR_KILLER: OnceCell<Regex> = OnceCell::new();
         let star_killer = STAR_KILLER.get_or_init(|| Regex::new(r"\*+").unwrap());
         let pattern = star_killer.replace_all(pattern, "*");
 
-        // TODO optimize wildcard checks
+        // TODO: Optimize wildcard checks.
         if pattern.contains('*') && !pattern.contains('$') {
             return Ok(Some(Self::Universal(pattern.to_string())));
         }
@@ -69,8 +69,8 @@ impl Wildcard {
         Ok(Some(Self::Both(regex)))
     }
 
-    // Returns true if path matches pattern.
-    /// TODO clean up the mess
+    /// Returns true if the path matches the pattern.
+    /// TODO Clean up the mess.
     fn match_universal(pattern: &str, path: &str) -> bool {
         let splits = pattern.split('*');
 
@@ -101,7 +101,7 @@ impl Wildcard {
     /// Returns true if the path matches the wildcard pattern.
     pub fn is_match(&self, path: &str) -> bool {
         match &self {
-            // Self::Ending(_) => todo!(),
+            // Self::Ending(_) => todo!(), // NOTE: Only end of pattern wildcard.
             Self::Universal(p) => Self::match_universal(p.as_str(), path),
             Self::Both(r) => r.is_match(path),
         }
@@ -111,7 +111,7 @@ impl Wildcard {
 /// Returns the prefixed & percent-encoded path.
 /// NOTE: Expects relative path.
 pub fn normalize_path(path: &str) -> String {
-    // TODO replace once_cell with std::sync::OnceLock once stable
+    // TODO: Replace once_cell with std::sync::OnceLock once stable.
     static FRAGMENT: OnceCell<AsciiSet> = OnceCell::new();
     let fragment = FRAGMENT.get_or_init(|| CONTROLS.add(b' ').add(b'"').add(b'<').add(b'>'));
     let path = utf8_percent_encode(path, fragment).to_string();

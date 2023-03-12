@@ -23,7 +23,7 @@ impl Rules {
 
     /// Returns true if the relative path is allowed for this set of rules.
     /// NOTE: Expects relative path.
-    pub fn is_match(&self, path: &str) -> bool {
+    pub fn is_allowed(&self, path: &str) -> bool {
         let path = normalize_path(path);
 
         if path.eq("/robots.txt") {
@@ -39,21 +39,8 @@ impl Rules {
         true
     }
 
-    /// Returns `Some(_)` if the site is fully allowed or disallowed.
-    pub fn is_always(&self) -> Option<bool> {
-        if self.rules.is_empty() {
-            return Some(true);
-        }
-
-        let disallows = self.rules.iter().filter(|r| !r.is_allowed());
-        match disallows.count() > 0 {
-            true => None,
-            false => Some(true),
-        }
-    }
-
     /// Returns the specified crawl-delay.
-    pub fn delay(&self) -> Option<Duration> {
+    pub fn crawl_delay(&self) -> Option<Duration> {
         self.delay
     }
 }
@@ -68,7 +55,7 @@ mod precedence {
         let disallow = Rule::new("/", false).unwrap();
         let rules = Rules::new(vec![allow, disallow], None);
 
-        assert!(rules.is_match("/page"));
+        assert!(rules.is_allowed("/page"));
     }
 
     #[test]
@@ -77,7 +64,7 @@ mod precedence {
         let disallow = Rule::new("/folder", false).unwrap();
         let rules = Rules::new(vec![allow, disallow], None);
 
-        assert!(rules.is_match("/folder/page"));
+        assert!(rules.is_allowed("/folder/page"));
     }
 
     #[test]
@@ -86,7 +73,7 @@ mod precedence {
         let disallow = Rule::new("/*.ph", false).unwrap();
         let rules = Rules::new(vec![allow, disallow], None);
 
-        assert!(rules.is_match("/page.php5"));
+        assert!(rules.is_allowed("/page.php5"));
     }
 
     #[test]
@@ -95,7 +82,7 @@ mod precedence {
         let disallow = Rule::new("/*.htm", false).unwrap();
         let rules = Rules::new(vec![allow, disallow], None);
 
-        assert!(!rules.is_match("/page.htm"));
+        assert!(!rules.is_allowed("/page.htm"));
     }
 
     #[test]
@@ -104,7 +91,7 @@ mod precedence {
         let disallow = Rule::new("/", false).unwrap();
         let rules = Rules::new(vec![allow, disallow], None);
 
-        assert!(rules.is_match("/"));
+        assert!(rules.is_allowed("/"));
     }
 
     #[test]
@@ -113,6 +100,6 @@ mod precedence {
         let disallow = Rule::new("/", false).unwrap();
         let rules = Rules::new(vec![allow, disallow], None);
 
-        assert!(!rules.is_match("/page.htm"));
+        assert!(!rules.is_allowed("/page.htm"));
     }
 }

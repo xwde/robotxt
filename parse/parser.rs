@@ -1,210 +1,319 @@
-use bstr::ByteSlice;
-use nom::branch::{alt, Alt};
-use nom::bytes::complete::{tag, tag_no_case, take_while};
-use nom::character::complete::{space0, space1};
-use nom::combinator::{eof, opt};
-use nom::error::{Error as NomError, ParseError as NomParseError};
-use nom::multi::many_till;
-use nom::sequence::preceded;
-use nom::{Err as NomErr, IResult as NomResult};
+use std::cmp::min;
+use std::io::{BufReader, Error as IoError, Read};
+use std::time::Duration;
 
-use std::fmt::{Debug, Formatter, Result as FmtResult};
+use url::Url;
 
-// TODO attach position
-/// The `Directive` enum represents every supported `robots.txt` directive.
-#[derive(Clone, Copy, PartialEq, Eq)]
-pub enum Directive<'a> {
-    UserAgent(&'a [u8]),
-    Allow(&'a [u8]),
-    Disallow(&'a [u8]),
-    CrawlDelay(&'a [u8]),
-    Sitemap(&'a [u8]),
-    Unknown(&'a [u8]),
-}
-
-impl Debug for Directive<'_> {
-    fn fmt(&self, f: &mut Formatter<'_>) -> FmtResult {
-        match &self {
-            Self::UserAgent(v) => f.debug_tuple("User-Agent").field(&v.as_bstr()).finish(),
-            Self::Allow(v) => f.debug_tuple("Allow").field(&v.as_bstr()).finish(),
-            Self::Disallow(v) => f.debug_tuple("Disallow").field(&v.as_bstr()).finish(),
-            Self::CrawlDelay(v) => f.debug_tuple("Crawl-Delay").field(&v.as_bstr()).finish(),
-            Self::Sitemap(v) => f.debug_tuple("Sitemap").field(&v.as_bstr()).finish(),
-            Self::Unknown(v) => f.debug_tuple("Unknown").field(&v.as_bstr()).finish(),
-        }
-    }
-}
-
-const CARRIAGE: u8 = b'\r';
-const NEWLINE: u8 = b'\n';
-const COMMENT: u8 = b'#';
+use crate::parse::{into_directives, Directive, Rule, Rules};
 
 ///
-pub fn b_not_line_ending(c: u8) -> bool {
-    c != NEWLINE && c != CARRIAGE
+fn parse_user_agent(u: &[u8]) -> Option<String> {
+    let u = String::from_utf8(u.to_vec()).ok()?;
+    let u = u.trim().to_lowercase();
+    Some(u)
 }
 
 ///
-pub fn b_not_line_ending_or_comment(c: u8) -> bool {
-    c != NEWLINE && c != CARRIAGE && c != COMMENT
+fn parse_sitemap(u: &[u8]) -> Option<Url> {
+    let u = String::from_utf8(u.to_vec()).ok()?;
+    let u = Url::parse(u.as_str()).ok()?;
+    Some(u)
 }
 
 ///
-pub fn b_consume_newline(input: &[u8]) -> NomResult<&[u8], Option<&[u8]>> {
-    let (input, _) = take_while(|i| i == CARRIAGE)(input)?;
-    let (input, output) = opt(tag(b"\n"))(input)?;
-    Ok((input, output))
+fn parse_rule(u: &[u8], allow: bool) -> Option<Rule> {
+    let u = String::from_utf8(u.to_vec()).ok()?;
+    let u = Rule::new(u.as_str(), allow).ok()?;
+    Some(u)
 }
 
 ///
-fn builder<'a, O, E: NomParseError<&'a [u8]>>(
-    input: &'a [u8],
-    spellings: impl Alt<&'a [u8], O, E>,
-) -> NomResult<&'a [u8], &'a [u8]>
-where
-    NomErr<NomError<&'a [u8]>>: From<NomErr<E>>,
-{
-    // Tries to match to the spelling list.
-    let (input, _) = preceded(space0, alt(spellings))(input)?;
-    // Tries to match the separator (colon or spaces).
-    let (input, _) = alt((preceded(space0, tag(b":")), space1))(input)?;
-    // Tries to retrieve the value of the kv pair.
-    let (input, line) = take_while(b_not_line_ending_or_comment)(input)?;
-
-    // Skips the rest.
-    let (input, _) = opt(preceded(tag(b"#"), take_while(b_not_line_ending)))(input)?;
-    let (input, _) = b_consume_newline(input)?;
-
-    let line = line.trim();
-    Ok((input, line))
+fn parse_crawl_delay(u: &[u8]) -> Option<Duration> {
+    let u = String::from_utf8(u.to_vec()).ok()?;
+    let u = u.parse::<f64>().ok()?;
+    let u = Duration::try_from_secs_f64(u).ok()?;
+    Some(u)
 }
 
-/// Attempts to parse the `user-agent` directive.
-fn user_agent(input: &[u8]) -> NomResult<&[u8], Directive> {
-    let matcher = (
-        tag_no_case("user-agent"),
-        tag_no_case("user agent"),
-        tag_no_case("useragent"),
-    );
-
-    let (input, agent) = builder(input, matcher)?;
-    Ok((input, Directive::UserAgent(agent)))
-}
-
-/// Attempts to parse the `allow` directive.
-fn allow(input: &[u8]) -> NomResult<&[u8], Directive> {
-    let matcher = (
-        tag_no_case("allow"),
-        tag_no_case("alow"),
-        tag_no_case("allaw"),
-    );
-
-    let (input, rule) = builder(input, matcher)?;
-    Ok((input, Directive::Allow(rule)))
-}
-
-/// Attempts to parse the `disallow` directive.
-fn disallow(input: &[u8]) -> NomResult<&[u8], Directive> {
-    let matcher = (
-        tag_no_case("disallow"),
-        tag_no_case("dissallow"),
-        tag_no_case("dissalow"),
-        tag_no_case("disalow"),
-        tag_no_case("diasllow"),
-        tag_no_case("disallaw"),
-    );
-
-    // Empty disallow is equivalent to allow all.
-    // https://moz.com/learn/seo/robotstxt
-    let (input, rule) = builder(input, matcher)?;
-    match rule.is_empty() {
-        true => Ok((input, Directive::Allow(b"/"))),
-        false => Ok((input, Directive::Disallow(rule))),
-    }
-}
-
-/// Attempts to parse the `crawl-delay` directive.
-fn crawl_delay(input: &[u8]) -> NomResult<&[u8], Directive> {
-    let matcher = (
-        tag_no_case("crawl-delay"),
-        tag_no_case("crawl delay"),
-        tag_no_case("crawldelay"),
-    );
-
-    let (input, delay) = builder(input, matcher)?;
-    Ok((input, Directive::CrawlDelay(delay)))
-}
-
-/// Attempts to parse the `sitemap` directive.
-fn sitemap(input: &[u8]) -> NomResult<&[u8], Directive> {
-    let matcher = (
-        tag_no_case("sitemap"),
-        tag_no_case("site-map"),
-        tag_no_case("site map"),
-    );
-
-    let (input, sitemap) = builder(input, matcher)?;
-    Ok((input, Directive::Sitemap(sitemap)))
-}
-
-/// Consumes the line as no directives were found here.
-fn unknown(input: &[u8]) -> NomResult<&[u8], Directive> {
-    let (input, unknown) = take_while(b_not_line_ending)(input)?;
-    let (input, _) = b_consume_newline(input)?;
-    Ok((input, Directive::Unknown(unknown)))
-}
+///
+const DEFAULT: &str = "*";
 
 /// Google currently enforces a `robots.txt` file size limit of 500 kibibytes (KiB).
 /// See [How Google interprets Robots.txt](https://t.ly/uWvd).
 pub const BYTES_LIMIT: usize = 512_000;
 
-/// Parses the input slice into the list of directives.
-fn parse(input: &[u8]) -> NomResult<&[u8], Vec<Directive>> {
-    // Removes the byte order mark (BOM).
-    let (input, _) = opt(tag(b"\xef"))(input)?;
-    let (input, _) = opt(tag(b"\xbb"))(input)?;
-    let (input, _) = opt(tag(b"\xbf"))(input)?;
-
-    // Creates and runs the matcher.
-    let matcher = alt((user_agent, allow, disallow, crawl_delay, sitemap, unknown));
-    let (input, (directives, _)) = many_till(matcher, eof)(input)?;
-
-    Ok((input, directives))
+/// The `AccessResult` enum represents the result of the
+/// `robots.txt` retrieval attempt. See [Robots::from_access].
+#[derive(Debug)]
+pub enum AccessResult<'a> {
+    /// The `robots.txt` file was provided by the server and
+    /// ready to be parsed.
+    Successful(&'a [u8]),
+    /// The `robots.txt` file has not been reached after
+    /// at least five redirect hops. Treated as `Unavailable`.
+    Redirect,
+    /// The valid `robots.txt` file does not exist.
+    /// The `Robots` assumes that there are no restrictions.
+    /// The site is fully allowed.
+    Unavailable,
+    /// The `robots.txt` file could not be served.
+    /// The site is fully disallowed.
+    Unreachable,
 }
 
-/// Parses the input slice into the list of directives.
-pub fn into_directives(input: &[u8]) -> Vec<Directive> {
-    // Discards the possibility of any error as `unknown` consumes anything.
-    match parse(input) {
-        Ok((_, directives)) => directives,
-        Err(_) => unreachable!(),
+///
+#[derive(Debug, Clone)]
+enum RobotsRules {
+    Rules(Rules),
+    Always(bool),
+}
+
+/// The `Robots` struct represents the set of directives related to
+/// the specific `user-agent` in the provided `robots.txt` file.
+#[derive(Debug, Clone)]
+pub struct Robots {
+    user_agent: String,
+    rules: RobotsRules,
+    sitemaps: Vec<Url>,
+}
+
+impl Robots {
+    /// Finds the longest matching user-agent and
+    /// if the parser should check non-assigned rules.
+    fn find_agent(directives: &[Directive], user_agent: &str) -> (String, bool) {
+        // Collects all uas.
+        let uas = directives.iter().filter_map(|ua2| match ua2 {
+            Directive::UserAgent(ua2) => String::from_utf8(ua2.to_vec()).ok(),
+            _ => None,
+        });
+
+        // Filters out non-acceptable uas.
+        let ua = user_agent.trim().to_lowercase();
+        let uas = uas.map(|ua2| ua2.trim().to_lowercase());
+        let uas = uas.filter(|ua2| ua.starts_with(ua2.as_str()));
+
+        // Finds the longest ua in the acceptable pool.
+        let uas = uas.max_by(|lhs, rhs| lhs.len().cmp(&rhs.len()));
+        let uas = uas.unwrap_or(DEFAULT.to_string());
+
+        // Determines if it should check non-assigned rules.
+        let default = uas.eq(DEFAULT);
+        (uas, default)
+    }
+
+    /// Creates a new `Robots` from the directives.
+    fn from_directives(directives: &[Directive], user_agent: &str) -> Self {
+        let (user_agent, mut captures_rules) = Self::find_agent(directives, user_agent);
+        let mut captures_group = false;
+
+        let mut rules = Vec::new();
+        let mut delay = None;
+        let mut sitemaps = Vec::new();
+
+        for directive in directives {
+            match directive {
+                Directive::UserAgent(u) => {
+                    if let Some(u) = parse_user_agent(u) {
+                        if !captures_group || !captures_rules {
+                            captures_rules = u.eq(&user_agent);
+                        }
+                    }
+
+                    captures_group = true;
+                    continue;
+                }
+
+                Directive::Sitemap(u) => {
+                    if let Some(u) = parse_sitemap(u) {
+                        sitemaps.push(u);
+                    }
+
+                    continue;
+                }
+
+                Directive::Unknown(_) => continue,
+                _ => captures_group = false,
+            }
+
+            if !captures_rules {
+                continue;
+            }
+
+            match directive {
+                Directive::Allow(u) | Directive::Disallow(u) => {
+                    let allow = matches!(directive, Directive::Allow(_));
+                    if let Some(u) = parse_rule(u, allow) {
+                        rules.push(u)
+                    }
+                }
+
+                Directive::CrawlDelay(u) => {
+                    if let Some(u) = parse_crawl_delay(u) {
+                        delay = delay.map(|c| min(c, u)).or(Some(u));
+                    }
+                }
+
+                _ => unreachable!(),
+            }
+        }
+
+        let rules = Rules::new(rules, delay);
+        Self {
+            user_agent,
+            rules: RobotsRules::Rules(rules),
+            sitemaps,
+        }
+    }
+
+    /// Creates a new `Robots` from the byte slice.
+    pub fn from_slice(robots: &[u8], user_agent: &str) -> Self {
+        // Limits the input to 500 kibibytes.
+        let limit = min(robots.len(), BYTES_LIMIT);
+        let robots = &robots[0..limit];
+
+        // Replaces '\x00' with '\n'.
+        let robots = robots.iter().map(|u| match u {
+            b'\x00' => b'\n',
+            v => *v,
+        });
+
+        let robots: Vec<_> = robots.collect();
+        let robots = robots.as_slice();
+
+        let directives = into_directives(robots);
+        Self::from_directives(directives.as_slice(), user_agent)
+    }
+
+    /// Creates a new `Robots` from the generic reader.
+    pub fn from_reader<R: Read>(reader: R, user_agent: &str) -> Result<Self, IoError> {
+        let reader = reader.take(BYTES_LIMIT as u64);
+        let mut reader = BufReader::new(reader);
+
+        let mut buffer = Vec::new();
+        reader.read_to_end(&mut buffer)?;
+
+        let robots = buffer.as_slice();
+        Ok(Self::from_slice(robots, user_agent))
+    }
+
+    /// Creates a new `Robots` from the `AccessResult`.
+    pub fn from_access(access: AccessResult, user_agent: &str) -> Self {
+        use AccessResult::*;
+        match access {
+            Successful(txt) => Self::from_slice(txt, user_agent),
+            Redirect | Unavailable => Self::from_always(true, user_agent),
+            Unreachable => Self::from_always(false, user_agent),
+        }
+    }
+
+    /// Creates a new `Robots` from the global rule.
+    pub fn from_always(always: bool, user_agent: &str) -> Self {
+        Self {
+            user_agent: user_agent.trim().to_lowercase(),
+            rules: RobotsRules::Always(always),
+            sitemaps: vec![],
+        }
+    }
+}
+
+impl Robots {
+    /// Returns the longest matching user-agent.
+    pub fn user_agent(&self) -> &str {
+        &self.user_agent
+    }
+
+    /// Returns true if the path is allowed for the user-agent.
+    /// NOTE: Expects relative path.
+    pub fn is_allowed(&self, path: &str) -> bool {
+        match &self.rules {
+            RobotsRules::Rules(rules) => rules.is_allowed(path),
+            RobotsRules::Always(always) => *always,
+        }
+    }
+
+    /// Returns `Some(_)` if the site is fully allowed or disallowed.
+    pub fn is_always(&self) -> Option<bool> {
+        match &self.rules {
+            RobotsRules::Rules(_) => None,
+            RobotsRules::Always(always) => Some(*always),
+        }
+    }
+
+    /// Returns the crawl-delay of the user-agent.
+    pub fn crawl_delay(&self) -> Option<Duration> {
+        match &self.rules {
+            RobotsRules::Rules(rules) => rules.crawl_delay(),
+            RobotsRules::Always(_) => None,
+        }
+    }
+
+    /// Returns all sitemaps.
+    pub fn sitemaps(&self) -> &Vec<Url> {
+        &self.sitemaps
     }
 }
 
 #[cfg(test)]
-mod parsing {
+mod precedence {
     use super::*;
 
-    #[test]
-    fn single() {
-        let r = b"user-agent: robotxt";
-        let r = into_directives(r);
+    static DIRECTIVES: &[Directive] = &[
+        Directive::UserAgent(b"bot-robotxt"),
+        Directive::Allow(b"/1"),
+        Directive::Disallow(b"/"),
+        Directive::UserAgent(b"*"),
+        Directive::Allow(b"/2"),
+        Directive::Disallow(b"/"),
+        Directive::UserAgent(b"bot"),
+        Directive::Allow(b"/3"),
+        Directive::Disallow(b"/"),
+    ];
 
-        let ua = b"robotxt";
-        let ua = Directive::UserAgent(ua);
-        assert_eq!(r, vec![ua]);
+    #[test]
+    fn specific() {
+        let r = Robots::from_directives(DIRECTIVES, "bot-robotxt");
+
+        // Matches:
+        assert!(r.is_allowed("/1"));
+
+        // Doesn't match:
+        assert!(!r.is_allowed("/2"));
+        assert!(!r.is_allowed("/3"));
     }
 
     #[test]
-    fn empty() {
-        let r = b"
-            user-agent: robotxt\n
-            user-agent: robotxt";
-        let r = into_directives(r);
+    fn strict() {
+        let r = Robots::from_directives(DIRECTIVES, "bot");
 
-        let ua = b"robotxt";
-        let ua = Directive::UserAgent(ua);
-        let em = Directive::Unknown(b"");
-        assert_eq!(r, vec![em, ua, em, ua]);
+        // Matches:
+        assert!(r.is_allowed("/3"));
+
+        // Doesn't match:
+        assert!(!r.is_allowed("/1"));
+        assert!(!r.is_allowed("/2"));
+    }
+
+    #[test]
+    fn missing() {
+        let r = Robots::from_directives(DIRECTIVES, "super-bot");
+
+        // Matches:
+        assert!(r.is_allowed("/2"));
+
+        // Doesn't match:
+        assert!(!r.is_allowed("/1"));
+        assert!(!r.is_allowed("/3"));
+    }
+
+    #[test]
+    fn partial() {
+        let r = Robots::from_directives(DIRECTIVES, "bot-super");
+
+        // Matches:
+        assert!(r.is_allowed("/3"));
+
+        // Doesn't match:
+        assert!(!r.is_allowed("/1"));
+        assert!(!r.is_allowed("/2"));
     }
 }
