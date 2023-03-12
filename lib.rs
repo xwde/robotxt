@@ -25,7 +25,7 @@
 //! - build the new `robots.txt` file from provided directives:
 //!
 //! ```rust
-//! use robotxt::Robots;
+//! use robotxt::Factory;
 //! ```
 //!
 //! ## Links

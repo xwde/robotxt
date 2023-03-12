@@ -4,7 +4,7 @@ use std::time::Duration;
 
 use url::Url;
 
-use crate::parse::{into_directives, Directive, Rule, Rules};
+use crate::parse::{slice_into_directives, Directive, Rule, Rules};
 
 ///
 fn parse_user_agent(u: &[u8]) -> Option<String> {
@@ -180,7 +180,7 @@ impl Robots {
         let robots: Vec<_> = robots.collect();
         let robots = robots.as_slice();
 
-        let directives = into_directives(robots);
+        let directives = slice_into_directives(robots);
         Self::from_directives(directives.as_slice(), user_agent)
     }
 
