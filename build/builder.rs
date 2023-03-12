@@ -105,8 +105,9 @@ impl Factory {
 
 #[cfg(test)]
 mod tests {
-    use std::io::{BufWriter, stdout};
     use super::*;
+
+    use std::io::{stdout, BufWriter};
 
     #[test]
     fn test() {
