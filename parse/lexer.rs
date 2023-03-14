@@ -169,7 +169,7 @@ fn lex(input: &[u8]) -> NomResult<&[u8], Vec<Directive>> {
 }
 
 /// Parses the input slice into the list of directives.
-pub fn into_directives(input: &[u8]) -> Vec<Directive> {
+pub fn slice_into_directives(input: &[u8]) -> Vec<Directive> {
     // Discards the possibility of any error as `unknown` consumes anything.
     match lex(input) {
         Ok((_, directives)) => directives,
@@ -184,7 +184,7 @@ mod parsing {
     #[test]
     fn single() {
         let r = b"user-agent: robotxt";
-        let r = into_directives(r);
+        let r = slice_into_directives(r);
 
         let ua = b"robotxt";
         let ua = Directive::UserAgent(ua);
@@ -196,7 +196,7 @@ mod parsing {
         let r = b"
             user-agent: robotxt\n
             user-agent: robotxt";
-        let r = into_directives(r);
+        let r = slice_into_directives(r);
 
         let ua = b"robotxt";
         let ua = Directive::UserAgent(ua);

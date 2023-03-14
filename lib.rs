@@ -4,6 +4,8 @@
 //! with the support of `crawl-delay`, `sitemap`, and universal `*` match
 //! extensions (according to the RFC specification).
 //!
+//! **Also check out other `xwde` projects [here](https://github.com/xwde).**
+//!
 //! ## Examples
 //!
 //! - parse the `user-agent` in the provided `robots.txt` file:
@@ -25,7 +27,7 @@
 //! - build the new `robots.txt` file from provided directives:
 //!
 //! ```rust
-//! use robotxt::Robots;
+//! use robotxt::Factory;
 //! ```
 //!
 //! ## Links
