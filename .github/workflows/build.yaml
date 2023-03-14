@@ -32,14 +32,23 @@ jobs:
           key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
           restore-keys: ${{ runner.os }}-cargo-
 
+      - name: Setup Tarpaulin
+        run: cargo install cargo-tarpaulin
+        continue-on-error: true
+
       - name: Run Cargo:fmt
         run: cargo fmt --all -- --check
-        continue-on-error: false
 
       - name: Run Cargo:clippy
         run: cargo clippy --all-features -- -D warnings
-        continue-on-error: false
 
       - name: Run Cargo:test
-        run: cargo test --all-features
-        continue-on-error: false
+        run: cargo test --verbose --all-features
+
+      - name: Run Cargo:tarpaulin
+        run: cargo tarpaulin --verbose --all-features --out Xml --output-dir ./coverage
+
+      - name: Codecov
+        uses: codecov/codecov-action@v3
+        with:
+          files: ./coverage/cobertura.xml

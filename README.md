@@ -1,8 +1,11 @@
-## xwde: robotxt
+## robotxt
 
 [![Build Status][action-badge]][action-url]
 [![Crate Docs][docs-badge]][docs-url]
 [![Crate Version][crates-badge]][crates-url]
+[![Crate Coverage][coverage-badge]][coverage-url]
+
+**Also check out other `xwde` projects [here](https://github.com/xwde).**
 
 [action-badge]: https://img.shields.io/github/actions/workflow/status/xwde/robotxt/build.yaml?branch=main&label=build&logo=github&style=for-the-badge
 [action-url]: https://github.com/xwde/robotxt/actions/workflows/build.yaml
@@ -10,6 +13,8 @@
 [crates-url]: https://crates.io/crates/robotxt
 [docs-badge]: https://img.shields.io/docsrs/robotxt?logo=Docs.rs&style=for-the-badge
 [docs-url]: http://docs.rs/robotxt
+[coverage-badge]: https://img.shields.io/codecov/c/github/xwde/robotxt?logo=codecov&logoColor=white&style=flat-square
+[coverage-url]: https://app.codecov.io/gh/xwde/robotxt
 
 The implementation of the robots.txt (or URL exclusion) protocol in the Rust
 programming language with the support of `crawl-delay`, `sitemap` and universal
